@@ -87,7 +87,19 @@ Acesse [app.netlify.com/drop](https://app.netlify.com/drop) e arraste a pasta in
 variáveis de ambiente é melhor a Opção B.
 
 **Opção B — via Git (recomendado):**
-1. Suba esta pasta para um repositório no GitHub/GitLab.
+1. Suba esta pasta para um repositório no GitHub (esta pasta já vem com um repositório Git
+   inicializado e o primeiro commit pronto — você só precisa criar o repositório vazio no
+   GitHub e apontar para ele):
+
+   ```bash
+   cd vetorial-portal
+   git remote add origin https://github.com/SEU-USUARIO/vetorial-portal.git
+   git push -u origin main
+   ```
+
+   (Crie o repositório vazio antes em [github.com/new](https://github.com/new) — **sem**
+   marcar as opções de README/gitignore/license, para não conflitar com o que já existe aqui.
+   Se preferir GitLab, o processo é o mesmo, só muda a URL do `git remote add origin`.)
 2. No Netlify, clique em **Add new site → Import an existing project** e conecte o repositório.
 3. Build command: deixe em branco. Publish directory: `.` (já está no `netlify.toml`).
 4. Em **Site settings → Environment variables**, adicione:
