@@ -100,17 +100,39 @@ variáveis de ambiente é melhor a Opção B.
    (Crie o repositório vazio antes em [github.com/new](https://github.com/new) — **sem**
    marcar as opções de README/gitignore/license, para não conflitar com o que já existe aqui.
    Se preferir GitLab, o processo é o mesmo, só muda a URL do `git remote add origin`.)
-2. No Netlify, clique em **Add new site → Import an existing project** e conecte o repositório.
-3. Build command: deixe em branco. Publish directory: `.` (já está no `netlify.toml`).
-4. Em **Site settings → Environment variables**, adicione:
+2. No Netlify ([app.netlify.com](https://app.netlify.com)), clique em **Add new site → Import
+   an existing project**, escolha **GitHub** e autorize o Netlify a acessar sua conta, depois
+   selecione o repositório `vetorial-portal` que você acabou de criar.
+3. Na tela de configuração de build, o Netlify já deve detectar o `netlify.toml` e preencher
+   sozinho. Confirme que ficou assim (edite se necessário):
+   - **Build command:** em branco (não há build a rodar)
+   - **Publish directory:** `.`
+   - **Functions directory:** `netlify/functions` (o `netlify.toml` já define isso)
+4. Antes de clicar em Deploy — ou logo depois, em **Site settings → Environment variables →
+   Add a variable** —, adicione as duas variáveis:
    - `SUPABASE_URL` → o mesmo `Project URL` do Passo 1
    - `SUPABASE_SERVICE_ROLE_KEY` → a `service_role key` do Passo 1 (⚠️ nunca coloque essa no
      `index.html` — ela só deve existir aqui, como variável de ambiente do servidor)
-5. Clique em **Deploy site**.
+
+   Se você adicionar as variáveis **depois** do primeiro deploy, vá em **Deploys → Trigger
+   deploy → Deploy site** para que as Functions passem a enxergá-las.
+5. Clique em **Deploy site**. Em 1–2 minutos o Netlify te dá uma URL pública
+   (`algo.netlify.app`) — é ela que você vai acessar e compartilhar com a equipe. Se quiser,
+   depois dá para trocar por um domínio próprio em **Domain settings**.
 
 Depois do deploy, as Netlify Functions ficam disponíveis em
 `https://seu-site.netlify.app/.netlify/functions/admin-create-user` automaticamente — o
 `index.html` já chama esse caminho relativo, então não precisa configurar nada a mais.
+
+## Conferindo se ficou tudo certo
+
+1. Abra a URL do Netlify e faça login com o e-mail/senha do administrador criado no Passo 3.
+2. Vá em **Admin → Usuários → Novo usuário** e cadastre alguém de teste. Se aparecer erro
+   dizendo que a função não foi encontrada, confira se as variáveis `SUPABASE_URL` e
+   `SUPABASE_SERVICE_ROLE_KEY` foram salvas no Netlify e se você disparou um novo deploy depois
+   de adicioná-las.
+3. Vá em **Admin → Painéis** e cole a URL de embed de um relatório do Power BI para ver se ele
+   carrega certinho no iframe.
 
 ## Testando localmente antes de publicar
 
