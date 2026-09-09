@@ -1,0 +1,9 @@
+{
+  "name": "vetorial-portal",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Portal de painéis de logística da Vetorial — Supabase + Netlify",
+  "dependencies": {
+    "@supabase/supabase-js": "^2.45.0"
+  }
+}
