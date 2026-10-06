@@ -7,7 +7,7 @@
   const SUPABASE_URL = "https://kqrpjjyyzojtpknwelxc.supabase.co";
   const SUPABASE_ANON_KEY = "sb_publishable_1QM8Tnw7rOJLzvtJ4VaTKw_UNe2uJCr";
 
-  const DRIVER_EMAIL_DOMAIN = "motorista.local";   // igual ao de netlify/functions/lg-users.js
+  const DRIVER_EMAIL_DOMAIN = "motorista.local";   // igual ao de logistica/netlify/functions/lg-users.js
   const USERS_FN = "/.netlify/functions/lg-users";
   const BUCKET = "comprovantes";
 

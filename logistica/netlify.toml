@@ -1,0 +1,21 @@
+# Site próprio do Rastreamento Logístico no Netlify.
+# Ao importar o repositório, defina "Base directory" = logistica
+# (o restante é lido deste arquivo).
+[build]
+  publish = "."
+  functions = "netlify/functions"
+
+# O endereço do Supabase (SUPABASE_URL) é público por natureza: o navegador precisa dele e ele
+# já aparece em app.js. Por isso fica fora da verificação de segredos.
+# A SUPABASE_SERVICE_ROLE_KEY continua sendo verificada e NUNCA deve aparecer em arquivos.
+[build.environment]
+  SECRETS_SCAN_OMIT_KEYS = "SUPABASE_URL"
+
+[functions]
+  node_bundler = "esbuild"
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "SAMEORIGIN"
+    X-Content-Type-Options = "nosniff"
