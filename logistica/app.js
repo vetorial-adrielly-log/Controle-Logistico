@@ -148,6 +148,75 @@
   }
   function setFormError(el, msg){ el.textContent = msg || ""; el.style.display = msg ? "block" : "none"; }
 
+  /* ---------- atualização automática ---------- */
+  // Recarrega a tela a cada `ms` enquanto a aba estiver visível, e logo ao voltar para a aba.
+  // Funciona mesmo se o Realtime do Supabase estiver desligado ou a conexão cair.
+  function autoRefresh(fn, ms){
+    let busy = false;
+    const run = async () => {
+      if (busy || document.visibilityState !== "visible") return;
+      busy = true;
+      try { await fn(); markUpdated(); } catch (_) { /* tenta de novo no próximo ciclo */ }
+      busy = false;
+    };
+    const timer = setInterval(run, ms);
+    const onVisible = () => { if (document.visibilityState === "visible") run(); };
+    document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("focus", onVisible);
+    teardown.push(() => {
+      clearInterval(timer);
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("focus", onVisible);
+    });
+    return run;
+  }
+  const liveBadge = () => `<span class="live" title="A tela se atualiza sozinha"><span class="live-dot"></span>Ao vivo · <span class="live-at">${new Date().toLocaleTimeString("pt-BR")}</span></span>`;
+  function markUpdated(){ $$(".live-at").forEach(el => { el.textContent = new Date().toLocaleTimeString("pt-BR"); }); }
+
+  /* ---------- links temporários dos comprovantes (bucket privado) ---------- */
+  const signedCache = new Map();   // storage_path -> { url, exp }
+  async function signDocs(docs){
+    const now = Date.now();
+    const need = Array.from(new Set(docs.map(d => d.storage_path))).filter(p => { const c = signedCache.get(p); return !c || c.exp < now; });
+    if (need.length) {
+      const { data } = await sb.storage.from(BUCKET).createSignedUrls(need, 3600);
+      (data || []).forEach(s => { if (s.signedUrl) signedCache.set(s.path, { url: s.signedUrl, exp: now + 50 * 60 * 1000 }); });
+    }
+    return (path) => (signedCache.get(path) || {}).url;
+  }
+
+  // Cartões de comprovante (Painel e aba Comprovantes). `docs` vem com lg_routes(...) embutido.
+  function docTilesHtml(docs, urlOf){
+    return docs.map(d => {
+      const r = d.lg_routes || {};
+      const url = urlOf(d.storage_path);
+      const isImg = /^image\//.test(d.mime_type);
+      const thumb = isImg && url ? `<img src="${esc(url)}" alt="" loading="lazy">` : `<span class="doc-tile-icon">${icon("file")}<small>${esc((d.file_name.split(".").pop() || "").toUpperCase())}</small></span>`;
+      return `<div class="doc-tile">
+        ${url ? `<a class="doc-tile-thumb" href="${esc(url)}" target="_blank" rel="noopener" title="Abrir ${esc(d.file_name)}">${thumb}</a>` : `<div class="doc-tile-thumb">${thumb}</div>`}
+        <div class="doc-tile-body">
+          <div class="doc-tile-code">${esc(r.codigo || "—")}</div>
+          <div class="muted small ellipsis">${esc(r.cliente || r.destino || "")}</div>
+          <div class="muted small ellipsis">${esc(userName(d.uploaded_by))}${isContratante() && r.carrier_id ? " · " + esc(carrierName(r.carrier_id)) : ""}</div>
+          <div class="muted small">${fmtDateTime(d.created_at)}</div>
+        </div>
+        <div class="doc-tile-actions">
+          ${url ? `<a class="btn btn-ghost btn-sm" href="${esc(url)}" target="_blank" rel="noopener">Abrir</a>` : ""}
+          <button class="btn btn-ghost btn-sm" data-open-route="${esc(d.route_id)}">Rota</button>
+        </div>
+      </div>`;
+    }).join("");
+  }
+  const DOC_SELECT = "id,route_id,file_name,mime_type,storage_path,size_bytes,created_at,uploaded_by,lg_routes(codigo,cliente,destino,carrier_id,driver_id,status)";
+
+  // Clique em qualquer [data-open-route] da tela abre o detalhe da rota
+  document.addEventListener("click", (e) => {
+    const el = e.target.closest && e.target.closest("[data-open-route]");
+    if (!el || !$("#app") || $("#app").hidden) return;
+    e.preventDefault();
+    openRouteDetail(el.getAttribute("data-open-route"));
+  });
+
   /* ---------- Leaflet ---------- */
   function makeMap(el, opts){
     const map = L.map(el, Object.assign({ zoomControl: true, attributionControl: true }, opts || {})).setView([-15.8, -47.9], 4);
@@ -276,6 +345,7 @@
       case "contratante": return [
         { id: "painel", label: "Painel", icon: "map", render: renderPainel },
         { id: "rotas", label: "Rotas", icon: "list", render: renderRotas },
+        { id: "comprovantes", label: "Comprovantes", icon: "file", render: renderComprovantes },
         { id: "importar", label: "Importar cargas", icon: "upload", render: renderImportar },
         { id: "transportadoras", label: "Transportadoras", icon: "building", render: renderTransportadoras },
         { id: "usuarios", label: "Usuários", icon: "users", render: renderUsuarios }
@@ -283,6 +353,7 @@
       case "transportadora": return [
         { id: "painel", label: "Painel", icon: "map", render: renderPainel },
         { id: "rotas", label: "Rotas", icon: "list", render: renderRotas },
+        { id: "comprovantes", label: "Comprovantes", icon: "file", render: renderComprovantes },
         { id: "usuarios", label: "Motoristas", icon: "users", render: renderUsuarios }
       ];
       default: return [{ id: "motorista", label: "Minhas rotas", icon: "truck", render: renderMotorista }];
@@ -321,7 +392,7 @@
         </div>
         <div class="row">
           ${isContratante() ? `<select class="select" id="dash-carrier"><option value="">Todas as transportadoras</option>${state.carriers.map(c => `<option value="${c.id}">${esc(c.nome)}</option>`).join("")}</select>` : ""}
-          <button class="btn btn-ghost btn-sm" id="dash-refresh">${icon("refresh")} Atualizar</button>
+          ${liveBadge()}
         </div>
       </div>
       <div class="kpis" id="dash-kpis"></div>
@@ -331,6 +402,12 @@
           <div class="card-pad" style="padding-bottom:6px;"><div class="card-title" style="margin:0;">Motoristas <span class="muted small" id="dash-count"></span></div></div>
           <div class="driver-list" id="dash-drivers"></div>
         </div>
+      </div>
+      <div class="card" style="margin-top:16px;">
+        <div class="card-pad" style="padding-bottom:0;">
+          <div class="card-title">Comprovantes recebidos <button class="btn btn-ghost btn-sm" id="dash-alldocs">${icon("file")} Ver todos</button></div>
+        </div>
+        <div class="doc-grid" id="dash-docs"><div class="empty">Carregando...</div></div>
       </div>`;
 
     const map = makeMap($("#dash-map"));
@@ -351,7 +428,8 @@
       return `<b>${esc(d.nome)}</b><br>
         <span class="muted">${esc(carrierName(d.carrier_id))}${d.placa ? " · " + esc(d.placa) : ""}</span><br>
         ${r ? `Rota <b>${esc(r.codigo)}</b> → ${esc(r.destino || "—")}<br>` : ""}
-        Atualizado ${esc(timeAgo(st.recorded_at))} · ${kmh}`;
+        Atualizado ${esc(timeAgo(st.recorded_at))} · ${kmh}
+        ${r ? `<br><a href="#" data-open-route="${esc(r.id)}">Ver rota e comprovantes</a>` : ""}`;
     }
 
     function drawMarkers(){
@@ -411,7 +489,23 @@
       $("#dash-kpis").innerHTML = k.map(x => `<div class="card kpi"><div class="label"><span class="dot" style="background:${x.color}"></span>${x.label}</div><div class="value">${x.value}</div></div>`).join("");
     }
 
-    const drawAll = () => { drawKpis(); drawMarkers(); drawList(); };
+    let docs = [];
+    async function drawDocs(){
+      const fc = filterCarrier();
+      const list = docs.filter(d => !fc || (d.lg_routes && d.lg_routes.carrier_id === fc)).slice(0, 8);
+      const el = $("#dash-docs");
+      if (!el) return;
+      if (!list.length) { el.innerHTML = `<div class="empty">Nenhum comprovante recebido ainda${fc ? " desta transportadora" : ""}.</div>`; return; }
+      const urlOf = await signDocs(list);
+      el.innerHTML = docTilesHtml(list, urlOf);
+    }
+    async function loadDocs(){
+      const { data, error } = await sb.from("lg_documents").select(DOC_SELECT).order("created_at", { ascending: false }).limit(40);
+      if (error) throw error;
+      docs = data || [];
+    }
+
+    const drawAll = () => { drawKpis(); drawMarkers(); drawList(); drawDocs().catch(() => {}); };
 
     async function loadRoutes(){
       const { data, error } = await sb.from("lg_routes")
@@ -426,14 +520,12 @@
       if (error) throw error;
       statusById = new Map((data || []).map(s => [s.driver_id, s]));
     }
-    async function loadAll(){ await Promise.all([loadRoutes(), loadStatus()]); drawAll(); }
+    async function loadAll(){ await Promise.all([loadRoutes(), loadStatus(), loadDocs()]); drawAll(); }
 
     await loadAll();
     setTimeout(() => map.invalidateSize(), 50);
 
-    $("#dash-refresh").addEventListener("click", async () => {
-      try { await loadRefs(); await loadAll(); toast("Atualizado."); } catch (e) { toast(errMsg(e), true); }
-    });
+    $("#dash-alldocs").addEventListener("click", () => go("comprovantes"));
     const sel = $("#dash-carrier");
     if (sel) sel.addEventListener("change", () => { fitted = false; drawAll(); });
 
@@ -448,9 +540,13 @@
       .subscribe();
     teardown.push(() => sb.removeChannel(channel));
 
-    // Recolore "online/recente" com o passar do tempo e garante dados frescos se o realtime cair
-    const timer = setInterval(() => { loadStatus().then(drawAll).catch(() => {}); }, 60 * 1000);
-    teardown.push(() => clearInterval(timer));
+    // Atualização automática: posições, rotas e comprovantes a cada 15 s;
+    // cadastros (motoristas novos) a cada ~2 min
+    let tick = 0;
+    autoRefresh(async () => {
+      if (++tick % 8 === 0) await loadRefs();
+      await loadAll();
+    }, 15 * 1000);
   }
 
   /* ============================================================
@@ -464,6 +560,7 @@
           <p>${isContratante() ? "Todas as cargas importadas do sistema." : "Cargas destinadas à sua transportadora. Atribua o motorista de cada uma."}</p>
         </div>
         <div class="row">
+          ${liveBadge()}
           <button class="btn btn-ghost btn-sm" id="rt-export">${icon("download")} Exportar CSV</button>
         </div>
       </div>
@@ -546,6 +643,7 @@
       .on("postgres_changes", { event: "*", schema: "public", table: "lg_routes" }, reload)
       .subscribe();
     teardown.push(() => sb.removeChannel(channel));
+    autoRefresh(load, 20 * 1000);
   }
 
   function exportRoutesCsv(list){
@@ -633,7 +731,22 @@
 
     // mapa do trajeto
     const map = makeMap($("#rd-map", m));
-    modalCleanup = () => map.remove();
+    // Verifica a cada 15 s se chegou comprovante ou mudou o status/posição; se mudou, redesenha
+    const signature = (route, docCount, ptCount) => [route.status, route.driver_id, route.updated_at, docCount, ptCount].join("|");
+    const sig0 = signature(r, docs.length, pts.length);
+    const poll = setInterval(async () => {
+      if (document.visibilityState !== "visible") return;
+      try {
+        const [a, b, c] = await Promise.all([
+          sb.from("lg_routes").select("status,driver_id,updated_at").eq("id", routeId).single(),
+          sb.from("lg_documents").select("id", { count: "exact", head: true }).eq("route_id", routeId),
+          sb.from("lg_locations").select("id", { count: "exact", head: true }).eq("route_id", routeId)
+        ]);
+        if (a.error || b.error || c.error) return;
+        if (signature(a.data, b.count, c.count) !== sig0) openRouteDetail(routeId, onChange);
+      } catch (_) {}
+    }, 15 * 1000);
+    modalCleanup = () => { clearInterval(poll); map.remove(); };
     const layers = [];
     if (pts.length) {
       const line = L.polyline(pts.map(p => [p.lat, p.lng]), { color: "#28437E", weight: 4, opacity: 0.8 }).addTo(map);
@@ -704,8 +817,7 @@
 
   async function renderDocList(el, docs, onDelete){
     if (!docs.length) return;
-    const { data: signed } = await sb.storage.from(BUCKET).createSignedUrls(docs.map(d => d.storage_path), 3600);
-    const urlOf = (p) => ((signed || []).find(s => s.path === p) || {}).signedUrl;
+    const urlOf = await signDocs(docs);
     el.innerHTML = docs.map(d => {
       const url = urlOf(d.storage_path);
       const isImg = /^image\//.test(d.mime_type);
@@ -777,6 +889,71 @@
       });
       if (error) { await sb.storage.from(BUCKET).remove([path]); throw error; }
     }
+  }
+
+  /* ============================================================
+     COMPROVANTES (contratante / transportadora)
+     ============================================================ */
+  async function renderComprovantes(content){
+    content.innerHTML = `
+      <div class="page-head">
+        <div>
+          <h2>Comprovantes de entrega</h2>
+          <p>Documentos enviados pelos motoristas no fim de cada rota. Clique na imagem para abrir em tamanho real.</p>
+        </div>
+        ${liveBadge()}
+      </div>
+      <div class="filters">
+        <input class="input grow" id="cp-q" placeholder="Buscar código, cliente, motorista, arquivo..." style="min-width:220px;">
+        ${isContratante() ? `<select class="select" id="cp-carrier"><option value="">Todas as transportadoras</option>${state.carriers.map(c => `<option value="${c.id}">${esc(c.nome)}</option>`).join("")}</select>` : ""}
+        <select class="select" id="cp-driver"><option value="">Todos os motoristas</option>${drivers().map(d => `<option value="${d.id}">${esc(d.nome)}</option>`).join("")}</select>
+        <input class="input" type="date" id="cp-from" title="Enviados a partir de">
+        <input class="input" type="date" id="cp-to" title="Enviados até">
+      </div>
+      <div class="card"><div class="doc-grid" id="cp-grid"><div class="empty">Carregando...</div></div></div>
+      <div class="muted small" id="cp-foot" style="margin-top:8px;"></div>`;
+
+    let rows = [];
+    const LIMIT = 300;
+    async function load(){
+      let q = sb.from("lg_documents").select(DOC_SELECT).order("created_at", { ascending: false }).limit(LIMIT);
+      const from = $("#cp-from").value, to = $("#cp-to").value;
+      if (from) q = q.gte("created_at", new Date(from + "T00:00:00").toISOString());
+      if (to) q = q.lt("created_at", new Date(new Date(to + "T00:00:00").getTime() + 86400000).toISOString());
+      const d = $("#cp-driver").value;
+      if (d) q = q.eq("uploaded_by", d);
+      const { data, error } = await q;
+      if (error) throw error;
+      rows = data || [];
+      await draw();
+    }
+    function filtered(){
+      const term = $("#cp-q").value.trim().toLowerCase();
+      const c = ($("#cp-carrier") || {}).value;
+      return rows.filter(x => {
+        const r = x.lg_routes || {};
+        if (c && r.carrier_id !== c) return false;
+        if (!term) return true;
+        return [r.codigo, r.cliente, r.destino, x.file_name, userName(x.uploaded_by)].some(v => String(v || "").toLowerCase().includes(term));
+      });
+    }
+    async function draw(){
+      const list = filtered();
+      const el = $("#cp-grid");
+      if (!el) return;
+      if (!list.length) { el.innerHTML = `<div class="empty">Nenhum comprovante encontrado.</div>`; $("#cp-foot").textContent = ""; return; }
+      const urlOf = await signDocs(list);
+      el.innerHTML = docTilesHtml(list, urlOf);
+      $("#cp-foot").textContent = `${list.length} comprovante(s)` + (rows.length >= LIMIT ? ` — mostrando os ${LIMIT} mais recentes; use as datas para ver os anteriores.` : "");
+    }
+
+    $("#cp-q").addEventListener("input", debounce(() => draw().catch(() => {}), 150));
+    const c = $("#cp-carrier");
+    if (c) c.addEventListener("change", () => draw().catch(() => {}));
+    ["cp-driver", "cp-from", "cp-to"].forEach(id => $("#" + id).addEventListener("change", () => load().catch(e => toast(errMsg(e), true))));
+
+    await load();
+    autoRefresh(async () => { if ($("#modal-overlay").hidden) await load(); }, 20 * 1000);
   }
 
   /* ============================================================
@@ -1241,6 +1418,7 @@
 
     await loadStatus();
     draw();
+    autoRefresh(async () => { if (!$("#modal-overlay").hidden) return; await Promise.all([loadRefs(), loadStatus()]); draw(); }, 30 * 1000);
   }
 
   /* ============================================================
@@ -1550,6 +1728,8 @@
     teardown.push(() => sb.removeChannel(channel));
     const timer = setInterval(drawBanner, 30000);
     teardown.push(() => clearInterval(timer));
+    // novas rotas aparecem sozinhas (sem atrapalhar uma confirmação aberta)
+    autoRefresh(async () => { if ($("#modal-overlay").hidden) await load(); }, 30 * 1000);
   }
 
   /* ============================================================
