@@ -1,0 +1,3 @@
+codigo;transportadora_cnpj;transportadora_nome;motorista_cpf;placa;origem;destino;cliente;nota_fiscal;produto;peso;data_prevista;dest_lat;dest_lng;observacao
+CG-0001;11.111.111/0001-11;Transportadora Exemplo;123.456.789-01;ABC1D23;Sete Lagoas/MG;Contagem/MG;Cliente A;12345;Ferro Gusa;32,5;07/10/2026;-19,9320;-44,0539;
+CG-0002;11.111.111/0001-11;Transportadora Exemplo;;;Sete Lagoas/MG;Ipatinga/MG;Cliente B;12346;Minério de Ferro;28;08/10/2026;;;Motorista a definir pela transportadora

@@ -1,5 +1,9 @@
 # Portal de Painéis de Logística — Vetorial
 
+> **Novo:** módulo de **Rastreamento Logístico** em `/logistica/` (transportadoras, motoristas,
+> localização em tempo real, importação de cargas e comprovantes de entrega). Veja a seção
+> [Rastreamento Logístico](#rastreamento-logístico-logistica) no fim deste arquivo.
+
 Portal com login, controle de acesso por painel e área administrativa, agora rodando com
 **Supabase** (banco de dados + autenticação real) e hospedado no **Netlify** (site + funções
 serverless).
@@ -155,3 +159,119 @@ para o Git).
 - Toda escrita sensível (criar/excluir usuário) passa por uma Function que primeiro confere,
   no banco, se quem está pedindo é mesmo um administrador — mesmo que alguém tente chamar a
   Function diretamente sem passar pela tela.
+
+
+---
+
+# Rastreamento Logístico (`/logistica/`)
+
+Site para acompanhar as entregas feitas pelas transportadoras contratadas. Usa o **mesmo projeto
+Supabase** e o **mesmo deploy no Netlify** do portal — fica disponível em
+`https://seu-site.netlify.app/logistica/`.
+
+## Como funciona
+
+| Perfil | O que faz |
+|---|---|
+| **Contratante** | Importa o arquivo do sistema que "dá carga" nas rotas, vê **todos** os motoristas de **todas** as transportadoras no mapa, consulta trajetos e comprovantes, cadastra transportadoras e usuários. |
+| **Transportadora** | Vê no mapa **só os seus** motoristas, atribui motorista/placa às cargas que vieram para ela e cadastra os próprios motoristas. |
+| **Motorista** | Entra pelo celular com **CPF + senha**, vê as rotas atribuídas a ele, toca em **Iniciar rota** (a localização passa a ser enviada), e no fim da rota **envia a foto/PDF do documento de entrega** e toca em **Finalizar entrega**. |
+
+Fluxo de uma carga:
+
+1. O contratante importa o arquivo (CSV ou Excel) exportado do sistema → cada linha vira uma rota
+   **Pendente**, ligada à transportadora (pelo CNPJ ou nome) e, se o arquivo trouxer o CPF, ao
+   motorista. Reimportar o mesmo arquivo **atualiza** as rotas pelo código da carga, sem perder
+   status, trajeto ou comprovantes.
+2. Se a carga veio sem motorista, a transportadora escolhe o motorista em **Rotas**.
+3. O motorista inicia a rota → status **Em rota**; o celular envia a posição a cada ~30 s em
+   movimento (ou a cada 2 min parado). Sem internet, as posições ficam guardadas no aparelho e
+   são enviadas quando o sinal volta.
+4. No destino, o motorista fotografa o canhoto/documento de entrega (ou anexa um PDF) e finaliza →
+   status **Entregue**. O sistema **não deixa finalizar sem o documento**.
+5. Contratante e transportadora acompanham tudo no **Painel** (mapa em tempo real) e em **Rotas**
+   (detalhe com trajeto no mapa, comprovantes e exportação CSV).
+
+## Arquivos
+
+```
+logistica/
+├── index.html               # o app (uma página só, responsiva — funciona no celular)
+├── app.js                   # lógica das telas dos três perfis
+├── app.css                  # estilos (mesma identidade visual do portal)
+├── manifest.webmanifest     # permite "Adicionar à tela inicial" no celular
+├── icon.svg
+└── modelo-importacao.csv    # modelo do arquivo de cargas
+netlify/functions/lg-users.js  # cria/exclui usuários e troca senha (usa a service_role)
+supabase/logistica.sql         # tabelas, segurança (RLS), bucket dos comprovantes, realtime
+```
+
+## Instalação (uma vez)
+
+1. **Banco:** no Supabase, abra **SQL Editor → New query**, cole todo o conteúdo de
+   `supabase/logistica.sql` e clique em **Run**. Isso cria as tabelas `lg_*`, as regras de acesso
+   por perfil, o bucket privado **comprovantes** no Storage e liga o Realtime do mapa. O script
+   pode ser rodado de novo sem perder dados.
+2. **Primeiro contratante:** use um usuário que já existe em **Authentication → Users** (por
+   exemplo, o administrador do portal) ou crie um novo (marque **Auto Confirm User**). Copie o UID e
+   rode no SQL Editor:
+
+   ```sql
+   insert into public.lg_users (id, nome, email, role)
+   values ('COLE-O-UID-AQUI', 'Nome do Contratante', 'contratante@suaempresa.com', 'contratante');
+   ```
+3. **Netlify:** nada novo a configurar — a função `lg-users` usa as mesmas variáveis
+   `SUPABASE_URL` e `SUPABASE_SERVICE_ROLE_KEY` do portal. Basta publicar (push no Git).
+4. Acesse `/logistica/`, entre como contratante e:
+   - cadastre as **transportadoras** (ou deixe a importação criá-las automaticamente);
+   - em **Usuários**, crie um usuário de perfil **Transportadora** para cada empresa;
+   - cada transportadora cadastra seus **motoristas** (nome, CPF, senha, placa).
+
+> A URL e a chave pública do Supabase ficam no topo de `logistica/app.js` (já preenchidas com as
+> mesmas do portal).
+
+## Arquivo de importação
+
+A primeira linha precisa ter os nomes das colunas. A tela reconhece automaticamente nomes comuns
+(ex.: "Nº Carga", "Transportadora", "CPF Motorista", "Data Entrega", "Peso (kg)") e deixa você
+ajustar de qual coluna vem cada informação antes de importar, com pré-visualização.
+
+| Campo | Obrigatório | Observação |
+|---|---|---|
+| Código da carga | sim | Identificador único no sistema de origem (usado para atualizar na reimportação). |
+| CNPJ **ou** nome da transportadora | sim | Procura por CNPJ; se não achar, pelo nome. Pode criar a transportadora automaticamente. |
+| CPF do motorista | não | Se o motorista já estiver cadastrado nessa transportadora, a rota já vai para ele. |
+| Placa, origem, destino, cliente, nota fiscal, produto, peso, observação | não | |
+| Data prevista | não | Aceita `dd/mm/aaaa`, `aaaa-mm-dd` ou data do Excel. |
+| Latitude / longitude do destino | não | Se informadas, o destino aparece no mapa e o botão "Navegar" vai direto ao ponto. |
+
+Formatos aceitos: `.csv` (separado por `;` ou `,`, UTF-8 ou ANSI) e `.xlsx`/`.xls` (primeira aba).
+Baixe o modelo em **Importar cargas → Baixar modelo**.
+
+## Celular do motorista — pontos importantes
+
+- O motorista abre o endereço `https://seu-site.netlify.app/logistica/` no navegador do celular
+  (Chrome no Android, Safari no iPhone) e entra com **CPF e senha**. Dica: use "Adicionar à tela
+  inicial" para abrir como um aplicativo.
+- O navegador pede permissão de **localização** na primeira vez — é preciso **permitir**.
+- Por ser um site (e não um app instalado da loja), **a localização só é enviada enquanto o app
+  estiver aberto na tela**. O app mantém a tela ligada durante a rota (quando o aparelho permite)
+  e avisa se o motorista tentar fechar com uma rota em andamento. Se o celular bloquear a tela ou
+  o motorista trocar de app, o envio pausa e volta sozinho ao reabrir — e o mapa mostra há quanto
+  tempo foi a última posição (verde: até 5 min; laranja: até 30 min; cinza: mais antigo).
+  Para rastreamento contínuo em segundo plano seria necessário um app nativo (Android/iOS) — dá para
+  evoluir para isso depois aproveitando o mesmo banco.
+- Fotos grandes são reduzidas automaticamente antes do envio para economizar dados.
+- Motorista esqueceu a senha: a transportadora edita o motorista em **Motoristas** e define uma
+  nova senha.
+
+## Segurança
+
+- Todas as regras de acesso ficam no banco (RLS): a transportadora só consegue ler os próprios
+  motoristas, rotas, posições e comprovantes — mesmo que alguém tente consultar a API diretamente.
+- O motorista só grava posição para si mesmo e só anexa comprovante nas rotas dele; iniciar e
+  finalizar rota passam por funções do banco que validam isso.
+- Comprovantes ficam em bucket **privado**; os links de visualização são temporários (1 hora).
+- Os mapas usam os tiles públicos do OpenStreetMap, adequados para uso moderado. Para muitos
+  acessos simultâneos, troque a URL dos tiles em `logistica/app.js` (função `makeMap`) por um
+  provedor com chave (MapTiler, Mapbox, etc.).
