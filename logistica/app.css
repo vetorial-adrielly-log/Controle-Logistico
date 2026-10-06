@@ -247,6 +247,29 @@ table.tbl{width:100%;border-collapse:collapse;font-size:13px;}
 .doc-thumb{width:44px;height:44px;border-radius:8px;object-fit:cover;background:#EEECE6;flex-shrink:0;display:flex;align-items:center;justify-content:center;color:var(--text-secondary);}
 .section-title{font-family:'Poppins';font-weight:600;font-size:14px;margin:18px 0 10px;}
 
+/* ---------- AO VIVO ---------- */
+.live{
+  display:inline-flex;align-items:center;gap:7px;font-size:12px;font-weight:600;color:var(--green-dark);
+  background:#E2F0E2;border:1px solid #BFDDBF;padding:6px 11px;border-radius:999px;white-space:nowrap;
+}
+.live-dot{width:8px;height:8px;border-radius:50%;background:var(--green-mid);animation:pulse 1.6s infinite;}
+.live-at{font-weight:500;color:var(--text-secondary);font-variant-numeric:tabular-nums;}
+
+/* ---------- COMPROVANTES ---------- */
+.doc-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:12px;padding:14px;}
+.doc-grid > .empty{grid-column:1/-1;}
+.doc-tile{border:1px solid var(--border);border-radius:10px;overflow:hidden;display:flex;flex-direction:column;background:var(--card);min-width:0;}
+.doc-tile-thumb{text-decoration:none;display:flex;align-items:center;justify-content:center;height:140px;background:#EEECE6;color:var(--text-secondary);overflow:hidden;}
+.doc-tile-thumb img{width:100%;height:100%;object-fit:cover;display:block;transition:transform .2s;}
+a.doc-tile-thumb:hover img{transform:scale(1.04);}
+.doc-tile-icon{display:flex;flex-direction:column;align-items:center;gap:4px;font-weight:700;}
+.doc-tile-icon svg{width:34px;height:34px;}
+.doc-tile-body{padding:10px 12px 4px;min-width:0;}
+.doc-tile-code{font-weight:700;font-size:13.5px;}
+.doc-tile-actions{display:flex;gap:6px;padding:8px 12px 12px;margin-top:auto;}
+.doc-tile-actions .btn{flex:1;}
+.ellipsis{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+
 /* ---------- IMPORT ---------- */
 .dropzone{
   display:block;
@@ -323,4 +346,7 @@ table.tbl{width:100%;border-collapse:collapse;font-size:13px;}
   .modal{padding:18px;}
   .map{height:360px;}
   .hide-sm{display:none;}
+  .doc-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;padding:10px;}
+  .doc-tile-thumb{height:110px;}
+  .doc-tile-actions{flex-direction:column;}
 }
