@@ -1,6 +1,6 @@
 # Portal de Painéis de Logística — Vetorial
 
-> **Novo:** módulo de **Rastreamento Logístico** em `/logistica/` (transportadoras, motoristas,
+> **Novo:** módulo de **Rastreamento Logístico** na pasta `logistica/`, publicado como site próprio (transportadoras, motoristas,
 > localização em tempo real, importação de cargas e comprovantes de entrega). Veja a seção
 > [Rastreamento Logístico](#rastreamento-logístico-logistica) no fim deste arquivo.
 
@@ -163,11 +163,11 @@ para o Git).
 
 ---
 
-# Rastreamento Logístico (`/logistica/`)
+# Rastreamento Logístico (`logistica/`)
 
 Site para acompanhar as entregas feitas pelas transportadoras contratadas. Usa o **mesmo projeto
-Supabase** e o **mesmo deploy no Netlify** do portal — fica disponível em
-`https://seu-site.netlify.app/logistica/`.
+Supabase** do portal, mas é publicado como um **site próprio no Netlify** (a pasta `logistica/` é
+autossuficiente: tem o próprio `netlify.toml`, `package.json` e função).
 
 ## Como funciona
 
@@ -201,9 +201,12 @@ logistica/
 ├── app.css                  # estilos (mesma identidade visual do portal)
 ├── manifest.webmanifest     # permite "Adicionar à tela inicial" no celular
 ├── icon.svg
-└── modelo-importacao.csv    # modelo do arquivo de cargas
-netlify/functions/lg-users.js  # cria/exclui usuários e troca senha (usa a service_role)
-supabase/logistica.sql         # tabelas, segurança (RLS), bucket dos comprovantes, realtime
+├── modelo-importacao.csv    # modelo do arquivo de cargas
+├── netlify.toml             # configuração do site próprio no Netlify
+├── package.json             # dependência da função
+└── netlify/functions/
+    └── lg-users.js          # cria/exclui usuários e troca senha (usa a service_role)
+supabase/logistica.sql       # tabelas, segurança (RLS), bucket dos comprovantes, realtime
 ```
 
 ## Instalação (uma vez)
@@ -220,9 +223,15 @@ supabase/logistica.sql         # tabelas, segurança (RLS), bucket dos comprovan
    insert into public.lg_users (id, nome, email, role)
    values ('COLE-O-UID-AQUI', 'Nome do Contratante', 'contratante@suaempresa.com', 'contratante');
    ```
-3. **Netlify:** nada novo a configurar — a função `lg-users` usa as mesmas variáveis
-   `SUPABASE_URL` e `SUPABASE_SERVICE_ROLE_KEY` do portal. Basta publicar (push no Git).
-4. Acesse `/logistica/`, entre como contratante e:
+3. **Netlify (site próprio):** em **Add new site → Import an existing project**, escolha o
+   repositório e, na tela de configuração, preencha **Base directory** = `logistica` (os demais
+   campos vêm de `logistica/netlify.toml`). Em **Environment variables** do novo site, crie:
+   - `SUPABASE_URL` → `Project URL` do Supabase
+   - `SUPABASE_SERVICE_ROLE_KEY` → a chave **secreta** (`sb_secret_...` ou a `service_role`
+     legada), **nunca** a `sb_publishable_...`
+
+   Depois de salvar as variáveis, faça **Deploys → Trigger deploy → Deploy site**.
+4. Acesse o endereço do novo site, entre como contratante e:
    - cadastre as **transportadoras** (ou deixe a importação criá-las automaticamente);
    - em **Usuários**, crie um usuário de perfil **Transportadora** para cada empresa;
    - cada transportadora cadastra seus **motoristas** (nome, CPF, senha, placa).
@@ -250,7 +259,7 @@ Baixe o modelo em **Importar cargas → Baixar modelo**.
 
 ## Celular do motorista — pontos importantes
 
-- O motorista abre o endereço `https://seu-site.netlify.app/logistica/` no navegador do celular
+- O motorista abre o endereço do site de rastreamento no navegador do celular
   (Chrome no Android, Safari no iPhone) e entra com **CPF e senha**. Dica: use "Adicionar à tela
   inicial" para abrir como um aplicativo.
 - O navegador pede permissão de **localização** na primeira vez — é preciso **permitir**.

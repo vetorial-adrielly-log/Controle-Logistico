@@ -1,0 +1,9 @@
+{
+  "name": "rastreamento-logistico",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Rastreamento logístico (transportadoras, motoristas, comprovantes) — Supabase + Netlify",
+  "dependencies": {
+    "@supabase/supabase-js": "^2.45.0"
+  }
+}
