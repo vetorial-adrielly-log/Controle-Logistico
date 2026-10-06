@@ -2,6 +2,12 @@
   publish = "."
   functions = "netlify/functions"
 
+# O endereço do Supabase (SUPABASE_URL) é público por natureza: o navegador precisa dele e ele
+# já aparece no index.html e em logistica/app.js. Por isso fica fora da verificação de segredos.
+# A SUPABASE_SERVICE_ROLE_KEY continua sendo verificada e NUNCA deve aparecer em arquivos.
+[build.environment]
+  SECRETS_SCAN_OMIT_KEYS = "SUPABASE_URL"
+
 [functions]
   node_bundler = "esbuild"
 
