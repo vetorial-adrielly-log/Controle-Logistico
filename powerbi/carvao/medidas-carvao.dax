@@ -1,0 +1,317 @@
+// Medidas da tela Carvão — tabela "Medidas Carvão"
+
+// ---- Meta Carvão (m³)   (formato: #,0)
+Meta Carvão (m³) =
+-- meta mensal da partição para os meses do filtro de data (dia, mês ou ano)
+VAR _meses =
+    SELECTCOLUMNS (
+        SUMMARIZE ( d_Calendario, d_Calendario[Ano], d_Calendario[Mês Número] ),
+        "@Mes", DATE ( d_Calendario[Ano], d_Calendario[Mês Número], 1 )
+    )
+RETURN
+    CALCULATE ( SUM ( f_MetaCarvao[Meta m³] ), TREATAS ( _meses, f_MetaCarvao[Mês] ) )
+
+// ---- Carregado Carvão (m³)   (formato: #,0)
+Carregado Carvão (m³) =
+CALCULATE ( SUM ( f_basePlan[M³] ), KEEPFILTERS ( f_basePlan[CARREGADO] = "OK" ) )
+
+// ---- Dias com Carregamento   (formato: 0)
+Dias com Carregamento =
+CALCULATE ( DISTINCTCOUNT ( f_basePlan[DATA] ), KEEPFILTERS ( f_basePlan[CARREGADO] = "OK" ) )
+
+// ---- % Atingimento Carvão   (formato: 0.00%)
+% Atingimento Carvão =
+DIVIDE ( [Carregado Carvão (m³)], [Meta Carvão (m³)], 0 )
+
+// ---- Gap Carvão (m³)   (formato: #,0)
+Gap Carvão (m³) =
+[Carregado Carvão (m³)] - [Meta Carvão (m³)]
+
+// ---- Média Diária Carvão   (formato: #,0)
+Média Diária Carvão =
+DIVIDE ( [Carregado Carvão (m³)], [Dias com Carregamento], 0 )
+
+// ---- Média Necessária Carvão   (formato: #,0)
+Média Necessária Carvão =
+-- quanto precisa carregar por dia, a partir de amanhã, para fechar a meta do mês (base D-1)
+VAR _base =
+    COALESCE (
+        CALCULATE ( MIN ( f_basePlan[DATA] ), KEEPFILTERS ( f_basePlan[CARREGADO] = "OK" ), ALLSELECTED ( f_basePlan[DATA] ), ALLSELECTED ( d_Calendario ) ),
+        MIN ( d_Calendario[Date] )
+    )
+VAR _fim  = EOMONTH ( _base, 0 )
+VAR _ref  = MIN ( TODAY () - 1, _fim )
+VAR _rest = DATEDIFF ( _ref, _fim, DAY )
+VAR _real = CALCULATE ( [Carregado Carvão (m³)], ALLSELECTED ( f_basePlan[DATA] ), ALLSELECTED ( d_Calendario ) )
+VAR _meta = CALCULATE ( [Meta Carvão (m³)], ALLSELECTED ( f_basePlan[DATA] ), ALLSELECTED ( d_Calendario ) )
+VAR _gap  = _meta - COALESCE ( _real, 0 )
+RETURN
+    SWITCH (
+        TRUE (),
+        ISBLANK ( _meta ), BLANK (),
+        _gap <= 0, 0,
+        _rest <= 0, BLANK (),
+        DIVIDE ( _gap, _rest )
+    )
+
+// ---- Lacuna Carvão   (formato: #,0)
+Lacuna Carvão =
+[Média Diária Carvão] - [Média Necessária Carvão]
+
+// ---- Tendência Carvão (m³)   (formato: #,0)
+Tendência Carvão (m³) =
+-- projeção do mês: carregado + média diária x dias restantes (base D-1), limitada à meta.
+-- Calculada no nível do filtro atual: total na tela, por UPC/destino nas linhas da tabela.
+VAR _base =
+    COALESCE ( CALCULATE ( MIN ( f_basePlan[DATA] ), KEEPFILTERS ( f_basePlan[CARREGADO] = "OK" ) ), MIN ( d_Calendario[Date] ) )
+VAR _fim  = EOMONTH ( _base, 0 )
+VAR _ref  = MIN ( TODAY () - 1, _fim )
+VAR _real = [Carregado Carvão (m³)]
+VAR _dias = [Dias com Carregamento]
+VAR _meta = [Meta Carvão (m³)]
+VAR _rest = DATEDIFF ( _ref, _fim, DAY )
+VAR _proj = _real + DIVIDE ( _real, _dias ) * _rest
+RETURN
+    SWITCH (
+        TRUE (),
+        ISBLANK ( _meta ) || _meta <= 0, BLANK (),
+        ISBLANK ( _real ), 0,
+        _real >= _meta, _meta,
+        _rest <= 0, _real,
+        MIN ( _proj, _meta )
+    )
+
+// ---- % Ritmo Carvão   (formato: 0.00%)
+% Ritmo Carvão =
+DIVIDE ( [Tendência Carvão (m³)], [Meta Carvão (m³)], 0 )
+
+// ---- Previsão Carvão   (formato: dd/mm/yyyy)
+Previsão Carvão =
+-- último dia carregado + dias que faltam no ritmo atual para fechar a meta
+VAR _med  = CALCULATE ( [Média Diária Carvão], ALLSELECTED ( f_basePlan[DATA] ), ALLSELECTED ( d_Calendario ) )
+VAR _gap  = CALCULATE ( [Gap Carvão (m³)], ALLSELECTED ( f_basePlan[DATA] ), ALLSELECTED ( d_Calendario ) )
+VAR _falta = IF ( _gap < 0, -_gap, 0 )
+VAR _last = CALCULATE ( MAX ( f_basePlan[DATA] ), KEEPFILTERS ( f_basePlan[CARREGADO] = "OK" ), ALLSELECTED ( f_basePlan[DATA] ), ALLSELECTED ( d_Calendario ) )
+RETURN
+    SWITCH (
+        TRUE (),
+        ISBLANK ( _last ), BLANK (),
+        _falta = 0, _last,
+        _med = 0, BLANK (),
+        _last + ROUNDUP ( DIVIDE ( _falta, _med ), 0 )
+    )
+
+// ---- Dias de Chegada Carvão   (formato: 0)
+Dias de Chegada Carvão =
+VAR _prev = [Previsão Carvão]
+RETURN
+    IF ( ISBLANK ( _prev ), BLANK (), MAX ( DATEDIFF ( TODAY (), _prev, DAY ), 0 ) )
+
+// ---- Contagem de Dias Carvão
+Contagem de Dias Carvão =
+VAR _base =
+    COALESCE (
+        CALCULATE ( MIN ( f_basePlan[DATA] ), KEEPFILTERS ( f_basePlan[CARREGADO] = "OK" ), ALLSELECTED ( f_basePlan[DATA] ), ALLSELECTED ( d_Calendario ) ),
+        CALCULATE ( MIN ( d_Calendario[Date] ), ALLSELECTED ( d_Calendario ) )
+    )
+VAR _ini = DATE ( YEAR ( _base ), MONTH ( _base ), 1 )
+VAR _fim = EOMONTH ( _base, 0 )
+-- Base é D-1: referência é o último dia fechado (ontem)
+VAR _ref = MIN ( TODAY () - 1, _fim )
+VAR DiasTotais     = DAY ( _fim )
+VAR DiasDecorridos = MAX ( DATEDIFF ( _ini, _ref, DAY ) + 1, 0 )
+VAR DiasRestantes  = DiasTotais - DiasDecorridos
+RETURN
+    IF (
+        ISBLANK ( _base ),
+        "Sem carregamento no período",
+        "Dias totais: " & DiasTotais & UNICHAR ( 10 ) &
+        "Dias decorridos: " & DiasDecorridos & UNICHAR ( 10 ) &
+        "Faltam: " & DiasRestantes & " dias"
+    )
+
+// ---- Média Realizada Carvão (Mês)   (formato: #,0)
+Média Realizada Carvão (Mês) =
+-- linha "média realizada" dos gráficos: média diária do mês do ponto, até ontem
+VAR _d0  = MIN ( d_Calendario[Date] )
+VAR _d   = MAX ( d_Calendario[Date] )
+VAR _ini = DATE ( YEAR ( _d ), MONTH ( _d ), 1 )
+VAR _ref = MIN ( TODAY () - 1, EOMONTH ( _d, 0 ) )
+VAR _v =
+    CALCULATE (
+        [Média Diária Carvão],
+        REMOVEFILTERS ( d_Calendario ),
+        DATESBETWEEN ( d_Calendario[Date], _ini, _ref )
+    )
+RETURN
+    IF ( _d0 <= _ref, _v )
+
+// ---- Média Necessária Carvão (Mês)   (formato: #,0)
+Média Necessária Carvão (Mês) =
+-- linha "média necessária" dos gráficos: o que falta da meta do mês / dias que faltam
+VAR _d    = MIN ( d_Calendario[Date] )
+VAR _ini  = DATE ( YEAR ( _d ), MONTH ( _d ), 1 )
+VAR _fim  = EOMONTH ( _d, 0 )
+VAR _ref  = MIN ( TODAY () - 1, _fim )
+VAR _real =
+    CALCULATE (
+        [Carregado Carvão (m³)],
+        REMOVEFILTERS ( d_Calendario ),
+        DATESBETWEEN ( d_Calendario[Date], _ini, _ref )
+    )
+VAR _meta =
+    CALCULATE (
+        [Meta Carvão (m³)],
+        REMOVEFILTERS ( d_Calendario ),
+        DATESBETWEEN ( d_Calendario[Date], _ini, _fim )
+    )
+VAR _rest = DATEDIFF ( _ref, _fim, DAY )
+VAR _gap  = _meta - COALESCE ( _real, 0 )
+RETURN
+    SWITCH (
+        TRUE (),
+        ISBLANK ( _meta ), BLANK (),
+        _gap <= 0, 0,
+        _rest <= 0, BLANK (),
+        DIVIDE ( _gap, _rest )
+    )
+
+// ---- Estoque Carvão CMG   (formato: #,0)
+Estoque Carvão CMG =
+VAR _u =
+    CALCULATE (
+        MAX ( f_Estoque_VS[DATA] ),
+        KEEPFILTERS (
+            FILTER (
+                f_Estoque_VS,
+                NOT ISBLANK ( f_Estoque_VS[ESTOQUE - VS CMG] ) || f_Estoque_VS[ESTOQUE - VS RRP - TOTAL] <> 0
+            )
+        )
+    )
+RETURN
+    CALCULATE ( SUM ( f_Estoque_VS[ESTOQUE - VS CMG] ), REMOVEFILTERS ( d_Calendario ), f_Estoque_VS[DATA] = _u )
+
+// ---- Estoque Carvão RRP   (formato: #,0)
+Estoque Carvão RRP =
+VAR _u =
+    CALCULATE (
+        MAX ( f_Estoque_VS[DATA] ),
+        KEEPFILTERS (
+            FILTER (
+                f_Estoque_VS,
+                NOT ISBLANK ( f_Estoque_VS[ESTOQUE - VS CMG] ) || f_Estoque_VS[ESTOQUE - VS RRP - TOTAL] <> 0
+            )
+        )
+    )
+RETURN
+    CALCULATE ( SUM ( f_Estoque_VS[ESTOQUE - VS RRP - TOTAL] ), REMOVEFILTERS ( d_Calendario ), f_Estoque_VS[DATA] = _u )
+
+// ---- Estoque Carvão Total   (formato: #,0)
+Estoque Carvão Total =
+[Estoque Carvão CMG] + [Estoque Carvão RRP]
+
+// ---- Estoque Carvão Animado
+Estoque Carvão Animado =
+-- mesmo formato do "Estoque Gusa Animado": um bloco por filial (RRP e CMG) com o
+-- estoque da última posição do período e as barras dos últimos 7 dias
+VAR _u =
+    CALCULATE (
+        MAX ( f_Estoque_VS[DATA] ),
+        KEEPFILTERS (
+            FILTER (
+                f_Estoque_VS,
+                NOT ISBLANK ( f_Estoque_VS[ESTOQUE - VS CMG] ) || f_Estoque_VS[ESTOQUE - VS RRP - TOTAL] <> 0
+            )
+        )
+    )
+VAR _dias =
+    CALCULATETABLE (
+        TOPN (
+            7,
+            FILTER (
+                VALUES ( f_Estoque_VS[DATA] ),
+                NOT ISBLANK ( CALCULATE ( MAX ( f_Estoque_VS[ESTOQUE - VS CMG] ) ) )
+                    || CALCULATE ( MAX ( f_Estoque_VS[ESTOQUE - VS RRP - TOTAL] ) ) <> 0
+            ),
+            f_Estoque_VS[DATA], DESC
+        ),
+        REMOVEFILTERS ( d_Calendario ),
+        f_Estoque_VS[DATA] <= _u
+    )
+VAR _filiais =
+    DATATABLE ( "Sigla", STRING, "Ordem", INTEGER, { { "RRP", 0 }, { "CMG", 1 } } )
+VAR _hb = 90    -- altura máxima da barra
+VAR _blocos =
+    CONCATENATEX (
+        _filiais,
+        VAR _s    = [Sigla]
+        VAR _i    = [Ordem]
+        VAR _y    = 8 + _i * 203
+        VAR _solo = _y + 150
+        VAR _atr  = _i * 300
+        VAR _vals =
+            ADDCOLUMNS (
+                _dias,
+                "@V",
+                    VAR _d = f_Estoque_VS[DATA]
+                    RETURN
+                        CALCULATE (
+                            IF (
+                                _s = "CMG",
+                                SUM ( f_Estoque_VS[ESTOQUE - VS CMG] ),
+                                SUM ( f_Estoque_VS[ESTOQUE - VS RRP - TOTAL] )
+                            ),
+                            REMOVEFILTERS ( d_Calendario ),
+                            f_Estoque_VS[DATA] = _d
+                        )
+            )
+        VAR _atual = MAXX ( FILTER ( _vals, f_Estoque_VS[DATA] = _u ), [@V] )
+        VAR _mx    = MAX ( MAXX ( _vals, [@V] ), 1 )
+        VAR _barras =
+            CONCATENATEX (
+                _vals,
+                VAR _d   = f_Estoque_VS[DATA]
+                VAR _v   = [@V]
+                VAR _k   = COUNTROWS ( FILTER ( _vals, f_Estoque_VS[DATA] < _d ) ) + 0
+                VAR _x   = 30 + _k * 48
+                VAR _h   = IF ( _v > 0, MAX ( 3, INT ( DIVIDE ( _v, _mx ) * _hb ) ), 0 )
+                VAR _cor = IF ( _d = _u, "#284D38", "#4D8264" )
+                RETURN
+                    IF ( _h = 0, "",
+                        "<g transform=""translate(" & _x & "," & _solo & ")""><g>" &
+                        "<animateTransform attributeName=""transform"" type=""scale"" values=""1 0;1 1"" dur=""500ms"" begin=""" & ( _atr + _k * 80 ) & "ms"" fill=""freeze""/>" &
+                        "<rect x=""0"" y=""-" & _h & """ width=""32"" height=""" & _h & """ fill=""" & _cor & """/></g></g>" ) &
+                    "<text x=""" & ( _x + 16 ) & """ y=""" & ( _solo - _h - 6 ) & """ font-size=""11"" text-anchor=""middle"" fill=""#3D3D3A"" opacity=""0"">" & FORMAT ( _v, "#,##0" ) &
+                        "<animate attributeName=""opacity"" values=""0;1"" dur=""300ms"" begin=""" & ( _atr + 500 + _k * 80 ) & "ms"" fill=""freeze""/></text>" &
+                    "<text x=""" & ( _x + 16 ) & """ y=""" & ( _solo + 16 ) & """ font-size=""11"" text-anchor=""middle"" fill=""#5F5E5A"">" & FORMAT ( _d, "dd/mm" ) & "</text>",
+                "",
+                f_Estoque_VS[DATA], ASC
+            )
+        RETURN
+            -- moldura do bloco
+            "<rect x=""4"" y=""" & _y & """ width=""570"" height=""191"" rx=""10"" fill=""#FFFFFF"" stroke=""#E5E3DC"" stroke-width=""1""/>" &
+            "<text x=""24"" y=""" & ( _y + 26 ) & """ font-size=""12"" font-weight=""600"" fill=""#284D38"">ESTOQUE DE CARVÃO (m³):</text>" &
+            "<text x=""24"" y=""" & ( _y + 44 ) & """ font-size=""11"" fill=""#5F5E5A"">posição de " & FORMAT ( _u, "dd/mm/yyyy" ) & " e últimos 7 dias</text>" &
+            "<text x=""465"" y=""" & ( _y + 42 ) & """ font-size=""30"" font-weight=""600"" text-anchor=""middle"" fill=""#284D38"">" & _s & "</text>" &
+            -- cartão do total
+            "<rect x=""380"" y=""" & ( _y + 54 ) & """ width=""170"" height=""110"" rx=""8"" fill=""#1E4430"" opacity=""0"">" &
+                "<animate attributeName=""opacity"" values=""0;1"" dur=""400ms"" begin=""" & ( _atr + 600 ) & "ms"" fill=""freeze""/></rect>" &
+            "<rect x=""380"" y=""" & ( _y + 54 ) & """ width=""170"" height=""110"" rx=""8"" fill=""#FFFFFF"" opacity=""0"">" &
+                "<animate attributeName=""opacity"" values=""0;0.12;0"" dur=""2800ms"" begin=""" & ( _atr + 1200 ) & "ms"" repeatCount=""indefinite""/></rect>" &
+            "<text x=""465"" y=""" & ( _y + 88 ) & """ font-size=""15"" text-anchor=""middle"" fill=""#FFFFFF"" opacity=""0"">Estoque Atual" &
+                "<animate attributeName=""opacity"" values=""0;1"" dur=""400ms"" begin=""" & ( _atr + 700 ) & "ms"" fill=""freeze""/></text>" &
+            "<text x=""465"" y=""" & ( _y + 134 ) & """ font-size=""32"" font-weight=""600"" text-anchor=""middle"" fill=""#FFFFFF"" opacity=""0"">" & FORMAT ( _atual, "#,##0" ) &
+                "<animate attributeName=""opacity"" values=""0;1"" dur=""400ms"" begin=""" & ( _atr + 800 ) & "ms"" fill=""freeze""/></text>" &
+            _barras,
+        "",
+        [Ordem], ASC
+    )
+RETURN
+    IF (
+        ISBLANK ( _u ),
+        "<div style=""font:13px sans-serif;color:#5F5E5A"">Sem estoque no filtro atual</div>",
+        "<div style=""width:100%;overflow:hidden"">" &
+        "<svg xmlns=""http://www.w3.org/2000/svg"" width=""100%"" viewBox=""0 0 578 411"" preserveAspectRatio=""xMidYMid meet"">" &
+            _blocos &
+        "</svg></div>"
+    )
