@@ -56,7 +56,11 @@ RETURN
 
 // ---- Lacuna Carvão   (formato: #,0)
 Lacuna Carvão =
-[Média Diária Carvão] - [Média Necessária Carvão]
+-- dispersão: média realizada - média necessária. Vazia quando não há média necessária
+-- (mês já fechado ou sem meta); antes repetia a média realizada nesses casos
+VAR _nec = [Média Necessária Carvão]
+RETURN
+    IF ( NOT ISBLANK ( _nec ), [Média Diária Carvão] - _nec )
 
 // ---- Tendência Carvão (m³)   (formato: #,0)
 Tendência Carvão (m³) =

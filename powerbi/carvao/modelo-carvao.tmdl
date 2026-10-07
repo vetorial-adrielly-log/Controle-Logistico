@@ -283,7 +283,11 @@ createOrReplace
 			lineageTag: 30090a28-8862-4f34-bb48-3e5dab747cfd
 
 		measure 'Lacuna Carvão' = ```
-				[Média Diária Carvão] - [Média Necessária Carvão]
+				-- dispersão: média realizada - média necessária. Vazia quando não há média necessária
+				-- (mês já fechado ou sem meta); antes repetia a média realizada nesses casos
+				VAR _nec = [Média Necessária Carvão]
+				RETURN
+				    IF ( NOT ISBLANK ( _nec ), [Média Diária Carvão] - _nec )
 				```
 			formatString: #,0
 			lineageTag: 53de2a93-546a-4e53-b12c-20c1f3303c57
