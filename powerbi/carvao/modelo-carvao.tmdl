@@ -112,7 +112,10 @@ createOrReplace
 					    Lidas    = Table.AddColumn(Expande, "Metas", each LerAba([Dados], [Aba]), type table),
 					    Empilha  = Table.ExpandTableColumn(Table.SelectColumns(Lidas, {"Ano", "Metas"}), "Metas",
 					                   {"MesNum", "UPC Partição", "Código UPC", "Tipo", "DESTINO", "Meta m³"}),
-					    ComMes   = Table.AddColumn(Empilha, "Mês", each #date([Ano], [MesNum], 1), type date),
+					    // abas que não são de metas (SAP, Apoio, Info Partição...) voltam vazias e o expand
+					    // mantém uma linha em branco para cada uma; sem este filtro o #date recebe mês null
+					    SoMetas  = Table.SelectRows(Empilha, each [MesNum] is number and [#"Meta m³"] is number),
+					    ComMes   = Table.AddColumn(SoMetas, "Mês", each #date([Ano], [MesNum], 1), type date),
 					    Tipado   = Table.TransformColumnTypes(ComMes, {
 					                   {"UPC Partição", type text}, {"Código UPC", type text}, {"Tipo", type text},
 					                   {"DESTINO", type text}, {"Meta m³", type number}}),
