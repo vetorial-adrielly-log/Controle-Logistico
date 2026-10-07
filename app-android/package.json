@@ -1,0 +1,15 @@
+{
+  "name": "rastreamento-logistico-android",
+  "version": "1.0.0",
+  "private": true,
+  "description": "App Android do Rastreamento Logístico (Capacitor) — abre o site publicado e envia a localização do motorista em segundo plano",
+  "dependencies": {
+    "@capacitor-community/background-geolocation": "1.2.26",
+    "@capacitor/android": "7.6.9",
+    "@capacitor/core": "7.6.9"
+  },
+  "devDependencies": {
+    "@capacitor/assets": "^3.0.5",
+    "@capacitor/cli": "7.6.9"
+  }
+}
