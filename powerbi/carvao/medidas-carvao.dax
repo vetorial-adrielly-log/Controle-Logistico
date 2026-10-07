@@ -216,8 +216,8 @@ Estoque Carvão Total =
 
 // ---- Estoque Carvão Animado
 Estoque Carvão Animado =
--- mesmo formato do "Estoque Gusa Animado": um bloco por filial (RRP e CMG) com o
--- estoque da última posição do período e as barras dos últimos 7 dias
+-- um bloco por filial (RRP e CMG): estoque da última posição do período e barras dos
+-- últimos 7 dias. Proporção 440 x 396 (quase quadrada) para preencher o espaço da tela
 VAR _u =
     CALCULATE (
         MAX ( f_Estoque_VS[DATA] ),
@@ -244,14 +244,14 @@ VAR _dias =
     )
 VAR _filiais =
     DATATABLE ( "Sigla", STRING, "Ordem", INTEGER, { { "RRP", 0 }, { "CMG", 1 } } )
-VAR _hb = 90    -- altura máxima da barra
+VAR _hb = 72    -- altura máxima da barra
 VAR _blocos =
     CONCATENATEX (
         _filiais,
         VAR _s    = [Sigla]
         VAR _i    = [Ordem]
-        VAR _y    = 8 + _i * 203
-        VAR _solo = _y + 150
+        VAR _y    = 4 + _i * 196
+        VAR _solo = _y + 160
         VAR _atr  = _i * 300
         VAR _vals =
             ADDCOLUMNS (
@@ -277,34 +277,33 @@ VAR _blocos =
                 VAR _d   = f_Estoque_VS[DATA]
                 VAR _v   = [@V]
                 VAR _k   = COUNTROWS ( FILTER ( _vals, f_Estoque_VS[DATA] < _d ) ) + 0
-                VAR _x   = 30 + _k * 48
+                VAR _x   = 22 + _k * 58
                 VAR _h   = IF ( _v > 0, MAX ( 3, INT ( DIVIDE ( _v, _mx ) * _hb ) ), 0 )
                 VAR _cor = IF ( _d = _u, "#284D38", "#4D8264" )
                 RETURN
                     IF ( _h = 0, "",
                         "<g transform=""translate(" & _x & "," & _solo & ")""><g>" &
                         "<animateTransform attributeName=""transform"" type=""scale"" values=""1 0;1 1"" dur=""500ms"" begin=""" & ( _atr + _k * 80 ) & "ms"" fill=""freeze""/>" &
-                        "<rect x=""0"" y=""-" & _h & """ width=""32"" height=""" & _h & """ fill=""" & _cor & """/></g></g>" ) &
-                    "<text x=""" & ( _x + 16 ) & """ y=""" & ( _solo - _h - 6 ) & """ font-size=""11"" text-anchor=""middle"" fill=""#3D3D3A"" opacity=""0"">" & FORMAT ( _v, "#,##0" ) &
+                        "<rect x=""0"" y=""-" & _h & """ width=""40"" height=""" & _h & """ fill=""" & _cor & """/></g></g>" ) &
+                    "<text x=""" & ( _x + 20 ) & """ y=""" & ( _solo - _h - 5 ) & """ font-size=""12"" font-weight=""600"" text-anchor=""middle"" fill=""#3D3D3A"" opacity=""0"">" & FORMAT ( _v, "#,##0" ) &
                         "<animate attributeName=""opacity"" values=""0;1"" dur=""300ms"" begin=""" & ( _atr + 500 + _k * 80 ) & "ms"" fill=""freeze""/></text>" &
-                    "<text x=""" & ( _x + 16 ) & """ y=""" & ( _solo + 16 ) & """ font-size=""11"" text-anchor=""middle"" fill=""#5F5E5A"">" & FORMAT ( _d, "dd/mm" ) & "</text>",
+                    "<text x=""" & ( _x + 20 ) & """ y=""" & ( _solo + 17 ) & """ font-size=""12"" text-anchor=""middle"" fill=""#5F5E5A"">" & FORMAT ( _d, "dd/mm" ) & "</text>",
                 "",
                 f_Estoque_VS[DATA], ASC
             )
         RETURN
-            -- moldura do bloco
-            "<rect x=""4"" y=""" & _y & """ width=""570"" height=""191"" rx=""10"" fill=""#FFFFFF"" stroke=""#E5E3DC"" stroke-width=""1""/>" &
-            "<text x=""24"" y=""" & ( _y + 26 ) & """ font-size=""12"" font-weight=""600"" fill=""#284D38"">ESTOQUE DE CARVÃO (m³):</text>" &
-            "<text x=""24"" y=""" & ( _y + 44 ) & """ font-size=""11"" fill=""#5F5E5A"">posição de " & FORMAT ( _u, "dd/mm/yyyy" ) & " e últimos 7 dias</text>" &
-            "<text x=""465"" y=""" & ( _y + 42 ) & """ font-size=""30"" font-weight=""600"" text-anchor=""middle"" fill=""#284D38"">" & _s & "</text>" &
-            -- cartão do total
-            "<rect x=""380"" y=""" & ( _y + 54 ) & """ width=""170"" height=""110"" rx=""8"" fill=""#1E4430"" opacity=""0"">" &
+            -- moldura do bloco (440 x 190)
+            "<rect x=""4"" y=""" & _y & """ width=""432"" height=""188"" rx=""10"" fill=""#FFFFFF"" stroke=""#E5E3DC"" stroke-width=""1""/>" &
+            "<text x=""20"" y=""" & ( _y + 28 ) & """ font-size=""14"" font-weight=""700"" fill=""#284D38"">ESTOQUE DE CARV&#195;O (m&#179;)</text>" &
+            "<text x=""20"" y=""" & ( _y + 47 ) & """ font-size=""12"" fill=""#5F5E5A"">posi&#231;&#227;o de " & FORMAT ( _u, "dd/mm/yyyy" ) & " &#183; &#250;ltimos 7 dias</text>" &
+            -- cartão: sigla + estoque atual
+            "<rect x=""300"" y=""" & ( _y + 10 ) & """ width=""126"" height=""56"" rx=""8"" fill=""#1E4430"" opacity=""0"">" &
                 "<animate attributeName=""opacity"" values=""0;1"" dur=""400ms"" begin=""" & ( _atr + 600 ) & "ms"" fill=""freeze""/></rect>" &
-            "<rect x=""380"" y=""" & ( _y + 54 ) & """ width=""170"" height=""110"" rx=""8"" fill=""#FFFFFF"" opacity=""0"">" &
+            "<rect x=""300"" y=""" & ( _y + 10 ) & """ width=""126"" height=""56"" rx=""8"" fill=""#FFFFFF"" opacity=""0"">" &
                 "<animate attributeName=""opacity"" values=""0;0.12;0"" dur=""2800ms"" begin=""" & ( _atr + 1200 ) & "ms"" repeatCount=""indefinite""/></rect>" &
-            "<text x=""465"" y=""" & ( _y + 88 ) & """ font-size=""15"" text-anchor=""middle"" fill=""#FFFFFF"" opacity=""0"">Estoque Atual" &
+            "<text x=""363"" y=""" & ( _y + 30 ) & """ font-size=""13"" font-weight=""700"" text-anchor=""middle"" fill=""#FFFFFF"" opacity=""0"">" & _s & " &#183; atual" &
                 "<animate attributeName=""opacity"" values=""0;1"" dur=""400ms"" begin=""" & ( _atr + 700 ) & "ms"" fill=""freeze""/></text>" &
-            "<text x=""465"" y=""" & ( _y + 134 ) & """ font-size=""32"" font-weight=""600"" text-anchor=""middle"" fill=""#FFFFFF"" opacity=""0"">" & FORMAT ( _atual, "#,##0" ) &
+            "<text x=""363"" y=""" & ( _y + 57 ) & """ font-size=""24"" font-weight=""700"" text-anchor=""middle"" fill=""#FFFFFF"" opacity=""0"">" & FORMAT ( _atual, "#,##0" ) &
                 "<animate attributeName=""opacity"" values=""0;1"" dur=""400ms"" begin=""" & ( _atr + 800 ) & "ms"" fill=""freeze""/></text>" &
             _barras,
         "",
@@ -315,7 +314,7 @@ RETURN
         ISBLANK ( _u ),
         "<div style=""font:13px sans-serif;color:#5F5E5A"">Sem estoque no filtro atual</div>",
         "<div style=""width:100%;overflow:hidden"">" &
-        "<svg xmlns=""http://www.w3.org/2000/svg"" width=""100%"" viewBox=""0 0 578 411"" preserveAspectRatio=""xMidYMid meet"">" &
+        "<svg xmlns=""http://www.w3.org/2000/svg"" width=""100%"" viewBox=""0 0 440 396"" preserveAspectRatio=""xMidYMid meet"">" &
             _blocos &
         "</svg></div>"
     )
