@@ -262,8 +262,10 @@ vem cada informação e deixa ajustar antes de importar:
 Regras da importação:
 - **Dados pessoais dos motoristas** (nome, documento e telefone) só são importados se a opção
   **"Importar dados dos motoristas"** for marcada na tela de importação — ela vem desmarcada.
-- Reimportar o relatório **atualiza** as rotas pelo nº do agendamento, sem perder status de
-  entrega, trajeto ou comprovantes.
+- **Sem duplicatas:** o nº do agendamento (`#`) é único no banco. Importar o relatório todo dia
+  **atualiza** as rotas que já existem (sem perder status de entrega, trajeto, comprovantes e
+  motorista atribuído) e só cria as novas. Antes de importar, a tela mostra quantas são novas,
+  quantas serão atualizadas e se há `#` repetido dentro do próprio arquivo (vale a última linha).
 - Agendamento com status **Cancelado** no sistema → rota cancelada no app (se ainda não entregue).
 - Motorista que **ainda não tem acesso** ao app: a rota guarda nome, documento e telefone dele e
   aparece em **Usuários/Motoristas → "Motoristas das cargas ainda sem acesso"**, com botão

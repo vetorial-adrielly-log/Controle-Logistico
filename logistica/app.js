@@ -1274,6 +1274,7 @@
         <label class="check" style="margin-top:6px;"><input type="checkbox" id="imp-drivers"> Importar dados dos motoristas (nome, documento e telefone)</label>
         <div class="section-title">Pré-visualização</div>
         <div class="card table-wrap" style="max-height:340px;" id="imp-preview"></div>
+        <div id="imp-check"></div>
         <div class="form-error" id="imp-err" style="margin-top:12px;"></div>
         <div class="form-actions"><button class="btn btn-primary" id="imp-go">${icon("upload")} Importar</button></div>
         <div id="imp-result"></div>`;
@@ -1292,6 +1293,37 @@
           <tbody>${rows.map(r => `<tr><td class="muted">${r.linha}</td>${used.map(f => `<td>${esc(f.key === "data_prevista" ? fmtDate(r[f.key]).replace("—", "") : DATETIME_FIELDS.includes(f.key) ? (r[f.key] ? fmtDateTime(r[f.key]) : "") : r[f.key])}</td>`).join("")}</tr>`).join("")}</tbody></table>`
           : `<div class="empty">Escolha as colunas acima.</div>`;
       }
+      // Antes de importar: quantas rotas são novas, quantas já existem (serão atualizadas pelo #)
+      // e quais # aparecem repetidos no próprio arquivo
+      let checkSeq = 0;
+      async function checkExisting(){
+        const box = $("#imp-check", stage);
+        const mp = currentMapping();
+        if (mp.codigo == null) { box.innerHTML = ""; return; }
+        const seq = ++checkSeq;
+        const codes = buildImportRows(data, dataStart, mp).rows.map(r => r.codigo).filter(Boolean);
+        const count = new Map();
+        codes.forEach(c => count.set(c, (count.get(c) || 0) + 1));
+        const repeated = Array.from(count.entries()).filter(([, n]) => n > 1);
+        const unique = Array.from(count.keys());
+        box.innerHTML = `<div class="result-box result-warn">Conferindo quais rotas já existem...</div>`;
+        let existing = 0;
+        try {
+          for (let i = 0; i < unique.length; i += 200) {
+            const { data: found, error } = await sb.from("lg_routes").select("codigo").in("codigo", unique.slice(i, i + 200));
+            if (error) throw error;
+            existing += (found || []).length;
+          }
+        } catch (e) { if (seq === checkSeq) box.innerHTML = ""; return; }
+        if (seq !== checkSeq) return;
+        box.innerHTML = `<div class="result-box ${repeated.length ? "result-warn" : "result-ok"}">
+          <b>${unique.length - existing}</b> rota(s) nova(s) e <b>${existing}</b> que já existe(m) e será(ão) <b>atualizada(s)</b> — o nº do agendamento (#) não se repete no sistema.
+          ${repeated.length ? `<br><b>${repeated.length} nº repetido(s) dentro do arquivo</b> — vale a última linha de cada: ${repeated.slice(0, 15).map(([c, n]) => `${esc(c)} (${n}x)`).join(", ")}${repeated.length > 15 ? "..." : ""}` : ""}
+        </div>`;
+      }
+      $$("[data-field]", stage).forEach(s => s.addEventListener("change", () => { if (s.dataset.field === "codigo") checkExisting(); }));
+      checkExisting();
+
       $$("[data-field]", stage).forEach(s => s.addEventListener("change", preview));
       $("#imp-drivers", stage).addEventListener("change", preview);
       preview();
@@ -1333,6 +1365,7 @@
           ${agg.warnings.length ? `<div class="result-box result-warn"><b>Avisos:</b><ul>${agg.warnings.map(li).join("")}</ul></div>` : ""}`;
         loadHistory();
         loadRefs().catch(() => {});
+        checkExisting();
       });
     }
   }
