@@ -260,6 +260,8 @@ vem cada informação e deixa ajustar antes de importar:
 | Agendado por | `Agendado por › Nome` e `› E-mail` |
 
 Regras da importação:
+- **Dados pessoais dos motoristas** (nome, documento e telefone) só são importados se a opção
+  **"Importar dados dos motoristas"** for marcada na tela de importação — ela vem desmarcada.
 - Reimportar o relatório **atualiza** as rotas pelo nº do agendamento, sem perder status de
   entrega, trajeto ou comprovantes.
 - Agendamento com status **Cancelado** no sistema → rota cancelada no app (se ainda não entregue).
