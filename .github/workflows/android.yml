@@ -50,8 +50,8 @@ jobs:
       - name: Gerar projeto Android
         run: |
           npx cap add android
+          # ícones a partir de assets/icon-only.png, icon-foreground.png e icon-background.png
           npx @capacitor/assets generate --android \
-            --iconBackgroundColor '#284D38' --iconBackgroundColorDark '#284D38' \
             --splashBackgroundColor '#284D38' --splashBackgroundColorDark '#284D38'
           # nome do canal da notificação de rastreamento
           sed -i 's#</resources>#    <string name="capacitor_background_geolocation_notification_channel_name">Rastreamento da rota</string>\n</resources>#' \
