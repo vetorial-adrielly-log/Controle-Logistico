@@ -15,7 +15,10 @@ let
     // lê uma aba no layout "PLANEJADO X REALIZADO - PUXADA DE CARVÃO"
     LerAba   = (t as table, aba as text) as table =>
         let
-            Linhas = List.Buffer(Table.ToRows(t)),
+            // células com erro (#REF!, #VALUE!, #NAME?) viram vazio: as abas de mês têm
+            // fórmulas quebradas da linha 108 para baixo e isso travava a carga
+            SemErro = Table.ReplaceErrorValues(t, List.Transform(Table.ColumnNames(t), each {_, null})),
+            Linhas = List.Buffer(Table.ToRows(SemErro)),
             Pos    = (txt as text) as number =>
                          List.PositionOf(List.Transform(Linhas, each List.Contains(_, txt)), true),
             iProp  = Pos("UPC - PRÓPRIA"),
