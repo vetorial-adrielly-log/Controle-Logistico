@@ -570,6 +570,39 @@ createOrReplace
 				```
 			lineageTag: ebef16e5-25d1-4f90-9e46-f27cc00e5cce
 
+		measure 'Viagens Planejadas Carvão' = ```
+				-- cargas programadas na puxada (OK + NOK + ainda sem status)
+				COUNTROWS ( f_basePlan )
+				```
+			formatString: #,0
+			lineageTag: a2feaebd-c049-4941-8304-950422039b40
+
+		measure 'Viagens Realizadas Carvão' = ```
+				CALCULATE ( COUNTROWS ( f_basePlan ), KEEPFILTERS ( f_basePlan[CARREGADO] = "OK" ) )
+				```
+			formatString: #,0
+			lineageTag: e3b60c0e-051c-4c0c-b2ec-8cda56032839
+
+		measure 'Furos Carvão' = ```
+				-- carga programada que não carregou (CARREGADO = "NOK")
+				CALCULATE ( COUNTROWS ( f_basePlan ), KEEPFILTERS ( f_basePlan[CARREGADO] = "NOK" ) )
+				```
+			formatString: #,0
+			lineageTag: 129bea58-5dff-44ac-a62e-9526e85d087b
+
+		measure 'Viagens a Realizar Carvão' = ```
+				-- programadas ainda sem status (nem OK nem NOK)
+				[Viagens Planejadas Carvão] - COALESCE ( [Viagens Realizadas Carvão], 0 ) - COALESCE ( [Furos Carvão], 0 )
+				```
+			formatString: #,0
+			lineageTag: 945a2d36-9407-4b08-98cc-1dec1627b4c6
+
+		measure '% Furo Carvão' = ```
+				DIVIDE ( [Furos Carvão], [Viagens Planejadas Carvão] )
+				```
+			formatString: 0.00%
+			lineageTag: beff9ae0-c600-4b4c-9310-f99866d28e6b
+
 		column Coluna
 			dataType: string
 			isHidden

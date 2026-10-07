@@ -319,3 +319,26 @@ RETURN
             _blocos &
         "</svg></div>"
     )
+
+// ---- Viagens Planejadas Carvão   (formato: #,0)
+Viagens Planejadas Carvão =
+-- cargas programadas na puxada (OK + NOK + ainda sem status)
+COUNTROWS ( f_basePlan )
+
+// ---- Viagens Realizadas Carvão   (formato: #,0)
+Viagens Realizadas Carvão =
+CALCULATE ( COUNTROWS ( f_basePlan ), KEEPFILTERS ( f_basePlan[CARREGADO] = "OK" ) )
+
+// ---- Furos Carvão   (formato: #,0)
+Furos Carvão =
+-- carga programada que não carregou (CARREGADO = "NOK")
+CALCULATE ( COUNTROWS ( f_basePlan ), KEEPFILTERS ( f_basePlan[CARREGADO] = "NOK" ) )
+
+// ---- Viagens a Realizar Carvão   (formato: #,0)
+Viagens a Realizar Carvão =
+-- programadas ainda sem status (nem OK nem NOK)
+[Viagens Planejadas Carvão] - COALESCE ( [Viagens Realizadas Carvão], 0 ) - COALESCE ( [Furos Carvão], 0 )
+
+// ---- % Furo Carvão   (formato: 0.00%)
+% Furo Carvão =
+DIVIDE ( [Furos Carvão], [Viagens Planejadas Carvão] )
