@@ -241,21 +241,41 @@ supabase/logistica.sql       # tabelas, segurança (RLS), bucket dos comprovante
 
 ## Arquivo de importação
 
-A primeira linha precisa ter os nomes das colunas. A tela reconhece automaticamente nomes comuns
-(ex.: "Nº Carga", "Transportadora", "CPF Motorista", "Data Entrega", "Peso (kg)") e deixa você
-ajustar de qual coluna vem cada informação antes de importar, com pré-visualização.
+O arquivo padrão é o **relatório de agendamentos** exportado do sistema (`.xlsx`, cabeçalho em 3
+linhas com células mescladas). Ele é reconhecido automaticamente — a tela mostra de qual coluna
+vem cada informação e deixa ajustar antes de importar:
 
-| Campo | Obrigatório | Observação |
-|---|---|---|
-| Código da carga | sim | Identificador único no sistema de origem (usado para atualizar na reimportação). |
-| CNPJ **ou** nome da transportadora | sim | Procura por CNPJ; se não achar, pelo nome. Pode criar a transportadora automaticamente. |
-| CPF do motorista | não | Se o motorista já estiver cadastrado nessa transportadora, a rota já vai para ele. |
-| Placa, origem, destino, cliente, nota fiscal, produto, peso, observação | não | |
-| Data prevista | não | Aceita `dd/mm/aaaa`, `aaaa-mm-dd` ou data do Excel. |
-| Latitude / longitude do destino | não | Se informadas, o destino aparece no mapa e o botão "Navegar" vai direto ao ponto. |
+| Campo no app | Coluna do relatório |
+|---|---|
+| Código da carga | `#` (nº do agendamento — chave para reimportar/atualizar) |
+| Transportadora | `Transportador › Nome` e `› CNPJ/CPF` |
+| Motorista | `Motorista › Nome`, `› Documento identificação`, `› Telefone` |
+| Veículo | `Veículo › Placa tração`, `› Placa(s) carreta(s)`, `› Equipamento` |
+| Terminal / origem | `Terminal` |
+| Cliente / destino | `Cliente › Nome` / `Cliente › Endereço` |
+| Operação | `Janela › Descrição` |
+| Produto, quantidade | `Contrato › Produtos`, `Quantidade` + `Unidade` |
+| Status no sistema, último evento, tempo no terminal | `Status`, `Último Evento`, `Tempo no terminal` |
+| Data / janela | `Cota`, `Período › Início` e `› Fim` |
+| Agendado por | `Agendado por › Nome` e `› E-mail` |
 
-Formatos aceitos: `.csv` (separado por `;` ou `,`, UTF-8 ou ANSI) e `.xlsx`/`.xls` (primeira aba).
-Baixe o modelo em **Importar cargas → Baixar modelo**.
+Regras da importação:
+- Reimportar o relatório **atualiza** as rotas pelo nº do agendamento, sem perder status de
+  entrega, trajeto ou comprovantes.
+- Agendamento com status **Cancelado** no sistema → rota cancelada no app (se ainda não entregue).
+- Motorista que **ainda não tem acesso** ao app: a rota guarda nome, documento e telefone dele e
+  aparece em **Usuários/Motoristas → "Motoristas das cargas ainda sem acesso"**, com botão
+  **Cadastrar** já preenchido. Ao cadastrar, todas as cargas com o documento dele passam para ele
+  automaticamente.
+- Linha **sem transportadora** no arquivo → entra em **"SEM TRANSPORTADORA"**; o contratante
+  escolhe a transportadora certa no detalhe da rota (a reimportação não desfaz a escolha).
+- A linha de total no fim do relatório (ex.: "132 veículos") é ignorada.
+- Motoristas estrangeiros entram com o número do documento no lugar do CPF.
+
+Também aceita outras planilhas e CSV (veja `logistica/modelo-importacao.csv`).
+
+> **Banco criado antes desta versão?** Rode `supabase/logistica-atualizacao-1.sql` uma vez no SQL
+> Editor (adiciona os campos novos; não apaga dados).
 
 ## Celular do motorista — pontos importantes
 

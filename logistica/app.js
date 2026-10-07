@@ -95,6 +95,23 @@
   function debounce(fn, ms){ let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); }; }
   function errMsg(e){ return (e && (e.message || e.error_description || e.error)) || String(e); }
 
+  // Nome do motorista da rota: o cadastrado no app ou, se ainda não tem acesso, o que veio no arquivo
+  function routeDriverHtml(r){
+    if (r.driver_id) return esc(userName(r.driver_id));
+    if (r.motorista_nome) return `${esc(r.motorista_nome)} <span class="badge st-pendente" title="Motorista ainda sem acesso ao app">sem acesso</span>`;
+    return `<span class="badge st-pendente">Definir</span>`;
+  }
+  const routeDriverText = (r) => (r.driver_id ? userName(r.driver_id) : (r.motorista_nome || ""));
+  const fmtQtd = (r) => (r.peso == null ? "—" : String(r.peso).replace(".", ",") + (r.unidade ? " " + r.unidade : ""));
+  function fmtJanela(r){
+    if (!r.periodo_inicio) return "—";
+    const a = new Date(r.periodo_inicio), b = r.periodo_fim ? new Date(r.periodo_fim) : null;
+    const hm = (d) => d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+    const sameDay = b && a.toDateString() === b.toDateString();
+    return `${a.toLocaleDateString("pt-BR")} ${hm(a)}` + (b ? ` – ${sameDay ? "" : b.toLocaleDateString("pt-BR") + " "}${hm(b)}` : "");
+  }
+  const fmtDoc = (v) => { const d = digits(v); return d.length === 11 ? fmtCpf(d) : (d || ""); };
+
   const STATUS_LABEL = { pendente: "Pendente", em_rota: "Em rota", entregue: "Entregue", cancelada: "Cancelada" };
   const ROLE_LABEL = { contratante: "Contratante", transportadora: "Transportadora", motorista: "Motorista" };
   const statusBadge = (s) => `<span class="badge st-${esc(s)}">${esc(STATUS_LABEL[s] || s)}</span>`;
@@ -270,7 +287,7 @@
 
   function loginToEmail(input){
     const v = input.trim();
-    if (!v.includes("@") && digits(v).length === 11) return `${digits(v)}@${DRIVER_EMAIL_DOMAIN}`;
+    if (!v.includes("@") && digits(v).length >= 5) return `${digits(v)}@${DRIVER_EMAIL_DOMAIN}`;
     return v.toLowerCase();
   }
 
@@ -608,7 +625,7 @@
     function filtered(){
       const term = $("#rt-q").value.trim().toLowerCase();
       if (!term) return rows;
-      return rows.filter(r => [r.codigo, r.cliente, r.destino, r.origem, r.nota_fiscal, r.placa, r.produto, userName(r.driver_id)]
+      return rows.filter(r => [r.codigo, r.cliente, r.destino, r.origem, r.nota_fiscal, r.placa, r.placas_carreta, r.produto, r.operacao, r.status_sistema, routeDriverText(r), r.motorista_cpf]
         .some(v => String(v || "").toLowerCase().includes(term)));
     }
     function draw(){
@@ -617,14 +634,14 @@
       $("#rt-body").innerHTML = list.length ? list.map(r => {
         const docs = (r.lg_documents && r.lg_documents[0] && r.lg_documents[0].count) || 0;
         return `<tr class="clickable" data-id="${r.id}">
-          <td><b>${esc(r.codigo)}</b>${r.nota_fiscal ? `<div class="muted small">NF ${esc(r.nota_fiscal)}</div>` : ""}</td>
+          <td><b>${esc(r.codigo)}</b>${r.operacao ? `<div class="muted small">${esc(r.operacao)}</div>` : r.nota_fiscal ? `<div class="muted small">NF ${esc(r.nota_fiscal)}</div>` : ""}</td>
           <td>${esc(r.cliente || "—")}</td>
           <td>${esc(r.destino || "—")}</td>
           ${isContratante() ? `<td>${esc(carrierName(r.carrier_id))}</td>` : ""}
-          <td>${r.driver_id ? esc(userName(r.driver_id)) : `<span class="badge st-pendente">Definir</span>`}</td>
-          <td class="hide-sm mono">${esc(r.placa || "—")}</td>
+          <td>${routeDriverHtml(r)}</td>
+          <td class="hide-sm mono">${esc(r.placa || "—")}${r.placas_carreta ? `<div class="muted small">${esc(r.placas_carreta)}</div>` : ""}</td>
           <td class="hide-sm">${fmtDate(r.data_prevista)}</td>
-          <td>${statusBadge(r.status)}</td>
+          <td>${statusBadge(r.status)}${r.status_sistema ? `<div class="muted small" title="Status no sistema de agendamento">${esc(r.status_sistema)}</div>` : ""}</td>
           <td>${docs ? `<span class="doc-chip">${icon("file")}${docs}</span>` : `<span class="muted">—</span>`}</td>
         </tr>`;
       }).join("") : `<tr><td colspan="${cols}" class="empty">Nenhuma rota encontrada com esses filtros.</td></tr>`;
@@ -647,11 +664,11 @@
   }
 
   function exportRoutesCsv(list){
-    const head = ["codigo", "status", "transportadora", "motorista", "placa", "origem", "destino", "cliente", "nota_fiscal", "produto", "peso", "data_prevista", "iniciada_em", "entregue_em", "comprovantes"];
+    const head = ["codigo", "status", "status_sistema", "transportadora", "motorista", "documento_motorista", "placa", "carretas", "terminal_origem", "destino", "cliente", "operacao", "nota_fiscal", "produto", "quantidade", "unidade", "data_prevista", "janela", "iniciada_em", "entregue_em", "comprovantes"];
     const cell = (v) => { const s = String(v == null ? "" : v); return /[;"\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s; };
     const lines = [head.join(";")].concat(list.map(r => [
-      r.codigo, STATUS_LABEL[r.status], carrierName(r.carrier_id), r.driver_id ? userName(r.driver_id) : "", r.placa, r.origem, r.destino,
-      r.cliente, r.nota_fiscal, r.produto, r.peso == null ? "" : String(r.peso).replace(".", ","), fmtDate(r.data_prevista).replace("—", ""),
+      r.codigo, STATUS_LABEL[r.status], r.status_sistema, carrierName(r.carrier_id), routeDriverText(r), fmtDoc(r.motorista_cpf), r.placa, r.placas_carreta, r.origem, r.destino,
+      r.cliente, r.operacao, r.nota_fiscal, r.produto, r.peso == null ? "" : String(r.peso).replace(".", ","), r.unidade, fmtDate(r.data_prevista).replace("—", ""), fmtJanela(r).replace("—", ""),
       r.started_at ? fmtDateTime(r.started_at) : "", r.finished_at ? fmtDateTime(r.finished_at) : "",
       (r.lg_documents && r.lg_documents[0] && r.lg_documents[0].count) || 0
     ].map(cell).join(";")));
@@ -675,8 +692,13 @@
     const r = rRes.data, docs = dRes.data || [], pts = lRes.data || [];
     const open = r.status === "pendente" || r.status === "em_rota";
     const canAssign = open && (isContratante() || (state.me.role === "transportadora" && r.carrier_id === state.me.carrier_id));
-    const carrierDrivers = drivers().filter(d => d.carrier_id === r.carrier_id && (d.ativo || d.id === r.driver_id));
+    const driversOf = (carrierId) => drivers().filter(d => d.carrier_id === carrierId && (d.ativo || d.id === r.driver_id));
+    const carrierDrivers = driversOf(r.carrier_id);
+    // sugere o motorista cadastrado com o mesmo documento que veio no arquivo
+    const suggestedDriver = (carrierId) => r.driver_id || ((r.motorista_cpf && driversOf(carrierId).find(d => d.cpf === r.motorista_cpf)) || {}).id || "";
+    const driverOptions = (carrierId) => `<option value="">— sem motorista —</option>` + driversOf(carrierId).map(d => `<option value="${d.id}" ${d.id === suggestedDriver(carrierId) ? "selected" : ""}>${esc(d.nome)}${d.placa ? " (" + esc(d.placa) + ")" : ""}</option>`).join("");
     const field = (k, v) => `<div><div class="k">${k}</div><div class="v">${v}</div></div>`;
+    const opt = (k, v) => (v ? field(k, esc(v)) : "");
 
     m.innerHTML = `
       ${modalHead(`Rota ${esc(r.codigo)} ${statusBadge(r.status)}`, `${esc(r.origem || "—")} → ${esc(r.destino || "—")}`)}
@@ -687,27 +709,39 @@
       </div>
       <div class="detail-grid">
         ${field("Cliente", esc(r.cliente || "—"))}
-        ${field("Nota fiscal", esc(r.nota_fiscal || "—"))}
+        ${field("Terminal / origem", esc(r.origem || "—"))}
+        ${field("Destino", esc(r.destino || "—"))}
+        ${opt("Operação", r.operacao)}
         ${field("Produto", esc(r.produto || "—"))}
-        ${field("Peso", r.peso == null ? "—" : esc(String(r.peso).replace(".", ",")))}
+        ${field("Quantidade", esc(fmtQtd(r)))}
         ${field("Previsão", fmtDate(r.data_prevista))}
+        ${r.periodo_inicio ? field("Janela", esc(fmtJanela(r))) : ""}
         ${field("Transportadora", esc(carrierName(r.carrier_id)))}
-        ${field("Motorista", r.driver_id ? esc(userName(r.driver_id)) : "—")}
-        ${field("Placa", esc(r.placa || "—"))}
-        ${field("Observação", esc(r.observacao || "—"))}
+        ${field("Motorista", routeDriverHtml(r))}
+        ${opt("Documento do motorista", fmtDoc(r.motorista_cpf))}
+        ${opt("Telefone do motorista", r.motorista_telefone)}
+        ${field("Placa (tração)", esc(r.placa || "—"))}
+        ${opt("Carretas", r.placas_carreta)}
+        ${opt("Equipamento", r.equipamento)}
+        ${opt("Status no sistema", r.status_sistema)}
+        ${opt("Último evento", r.ultimo_evento)}
+        ${opt("Tempo no terminal", r.tempo_terminal)}
+        ${opt("Nota fiscal", r.nota_fiscal)}
+        ${opt("Agendado por", [r.agendado_por, r.agendado_email].filter(Boolean).join(" · "))}
+        ${opt("Observação", r.observacao)}
       </div>
 
       ${canAssign ? `
       <div class="card card-pad" style="background:#FBFAF6;margin-bottom:14px;">
         <div class="row">
+          ${isContratante() ? `<div class="fl grow" style="min-width:200px;"><label>Transportadora</label>
+            <select class="select" id="rd-carrier">${state.carriers.filter(c => c.ativo || c.id === r.carrier_id).map(c => `<option value="${c.id}" ${c.id === r.carrier_id ? "selected" : ""}>${esc(c.nome)}</option>`).join("")}</select></div>` : ""}
           <div class="fl grow" style="min-width:200px;"><label>Motorista</label>
-            <select class="select" id="rd-driver"><option value="">— sem motorista —</option>
-              ${carrierDrivers.map(d => `<option value="${d.id}" ${d.id === r.driver_id ? "selected" : ""}>${esc(d.nome)}${d.placa ? " (" + esc(d.placa) + ")" : ""}</option>`).join("")}
-            </select></div>
+            <select class="select" id="rd-driver">${driverOptions(r.carrier_id)}</select></div>
           <div class="fl" style="width:140px;"><label>Placa</label><input class="input" id="rd-placa" value="${esc(r.placa)}" placeholder="ABC1D23"></div>
           <button class="btn btn-primary" id="rd-assign" style="align-self:flex-end;">Salvar</button>
         </div>
-        ${carrierDrivers.length ? "" : `<div class="muted small" style="margin-top:8px;">Nenhum motorista cadastrado nesta transportadora ainda.</div>`}
+        <div class="muted small" id="rd-driver-hint" style="margin-top:8px;">${carrierDrivers.length ? (r.motorista_nome && !r.driver_id && !suggestedDriver(r.carrier_id) ? `O motorista do arquivo (${esc(r.motorista_nome)}) ainda não tem acesso — ao ser cadastrado com o documento ${esc(fmtDoc(r.motorista_cpf))}, esta rota passa para ele automaticamente.` : "") : "Nenhum motorista cadastrado nesta transportadora ainda."}</div>
       </div>` : ""}
 
       <div class="section-title">Trajeto <span class="muted small" style="font-weight:400;">(${pts.length} posição(ões) registrada(s))</span></div>
@@ -777,10 +811,19 @@
     const after = async (msg) => { toast(msg); if (onChange) await onChange(); openRouteDetail(routeId, onChange); };
     const on = (id, fn) => { const el = $("#" + id, m); if (el) el.addEventListener("click", async () => { el.disabled = true; try { await fn(); } catch (e) { toast(errMsg(e), true); el.disabled = false; } }); };
 
+    const carrierSel = $("#rd-carrier", m);
+    if (carrierSel) carrierSel.addEventListener("change", () => {
+      $("#rd-driver", m).innerHTML = driverOptions(carrierSel.value);
+      $("#rd-driver-hint", m).textContent = driversOf(carrierSel.value).length ? "" : "Nenhum motorista cadastrado nesta transportadora ainda.";
+    });
     on("rd-assign", async () => {
+      if (carrierSel && carrierSel.value !== r.carrier_id) {
+        const { error: cErr } = await sb.from("lg_routes").update({ carrier_id: carrierSel.value, driver_id: null }).eq("id", r.id);
+        if (cErr) throw cErr;
+      }
       const { error } = await sb.rpc("lg_assign_driver", { p_route: r.id, p_driver: $("#rd-driver", m).value || null, p_placa: $("#rd-placa", m).value });
       if (error) throw error;
-      await after("Motorista atualizado.");
+      await after("Rota atualizada.");
     });
     on("rd-upload", async () => {
       const files = await pickFiles();
@@ -959,35 +1002,81 @@
   /* ============================================================
      IMPORTAR CARGAS (contratante)
      ============================================================ */
+  // syn: nomes de coluna reconhecidos automaticamente (comparados sem acento/pontuação).
+  // Cabeçalhos em várias linhas (células mescladas) viram um nome só: "Motorista" + "Nome" → "motorista nome".
   const IMPORT_FIELDS = [
-    { key: "codigo", label: "Código da carga", req: true, syn: ["codigo", "cod", "carga", "codigo carga", "cod carga", "id carga", "numero carga", "n carga", "no carga", "ordem", "ordem carregamento", "romaneio", "viagem", "shipment", "pedido"] },
-    { key: "transportadora_cnpj", label: "CNPJ da transportadora", syn: ["cnpj", "cnpj transportadora", "transportadora cnpj", "cnpj transp", "cnpj transportador"] },
-    { key: "transportadora_nome", label: "Nome da transportadora", syn: ["transportadora", "transportador", "nome transportadora", "transp", "transportadora nome", "razao social transportadora"] },
-    { key: "motorista_cpf", label: "CPF do motorista", syn: ["cpf", "cpf motorista", "motorista cpf"] },
-    { key: "placa", label: "Placa", syn: ["placa", "placa veiculo", "veiculo", "placa cavalo", "cavalo"] },
-    { key: "origem", label: "Origem", syn: ["origem", "cidade origem", "local origem", "local carregamento", "unidade"] },
-    { key: "destino", label: "Destino", syn: ["destino", "cidade destino", "local destino", "local entrega", "endereco", "endereco entrega", "municipio destino"] },
-    { key: "cliente", label: "Cliente", syn: ["cliente", "destinatario", "nome cliente", "razao social", "razao social cliente"] },
-    { key: "nota_fiscal", label: "Nota fiscal", syn: ["nf", "nota", "nota fiscal", "nfe", "nf e", "numero nf", "n nf", "notas fiscais"] },
-    { key: "produto", label: "Produto", syn: ["produto", "material", "mercadoria", "descricao", "descricao produto"] },
-    { key: "peso", label: "Peso", syn: ["peso", "peso kg", "peso t", "peso ton", "toneladas", "peso liquido", "peso bruto", "quantidade"] },
-    { key: "data_prevista", label: "Data prevista", syn: ["data", "data prevista", "previsao", "data entrega", "previsao entrega", "data carregamento", "data saida", "data emissao"] },
+    { key: "codigo", label: "Código da carga / agendamento", req: true, syn: ["#", "numero", "agendamento", "numero agendamento", "id agendamento", "codigo", "cod", "carga", "codigo carga", "cod carga", "id carga", "numero carga", "n carga", "no carga", "ordem", "ordem carregamento", "romaneio", "viagem", "shipment", "pedido"] },
+    { key: "transportadora_cnpj", label: "CNPJ da transportadora", syn: ["transportador cnpj cpf", "transportador cnpj", "cnpj", "cnpj transportadora", "transportadora cnpj", "cnpj transp", "cnpj transportador"] },
+    { key: "transportadora_nome", label: "Nome da transportadora", syn: ["transportador nome", "transportadora", "transportador", "nome transportadora", "transp", "transportadora nome", "razao social transportadora"] },
+    { key: "motorista_cpf", label: "CPF / documento do motorista", syn: ["motorista documento identificacao", "documento identificacao", "motorista documento", "documento motorista", "cpf", "cpf motorista", "motorista cpf"] },
+    { key: "motorista_nome", label: "Nome do motorista", syn: ["motorista nome", "nome motorista", "motorista"] },
+    { key: "motorista_telefone", label: "Telefone do motorista", syn: ["motorista telefone", "telefone motorista", "telefone"] },
+    { key: "placa", label: "Placa (tração)", syn: ["veiculo placa tracao", "placa tracao", "placa", "placa veiculo", "veiculo", "placa cavalo", "cavalo"] },
+    { key: "placas_carreta", label: "Placas das carretas", syn: ["veiculo placa s carreta s", "placa s carreta s", "placas carreta", "placas carretas", "carretas", "placa carreta"] },
+    { key: "equipamento", label: "Equipamento", syn: ["veiculo equipamento", "equipamento", "tipo veiculo"] },
+    { key: "origem", label: "Terminal / origem", syn: ["terminal", "origem", "cidade origem", "local origem", "local carregamento"] },
+    { key: "destino", label: "Destino", syn: ["destino", "cliente endereco", "cidade destino", "local destino", "local entrega", "endereco", "endereco entrega", "municipio destino"] },
+    { key: "cliente", label: "Cliente", syn: ["cliente nome", "cliente", "destinatario", "nome cliente", "razao social", "razao social cliente"] },
+    { key: "operacao", label: "Operação (janela)", syn: ["janela descricao", "descricao janela", "operacao"] },
+    { key: "produto", label: "Produto", syn: ["contrato produtos", "produtos", "produto", "material", "mercadoria", "descricao produto"] },
+    { key: "peso", label: "Quantidade / peso", syn: ["quantidade", "peso", "peso kg", "peso t", "peso ton", "toneladas", "peso liquido", "peso bruto"] },
+    { key: "unidade", label: "Unidade", syn: ["unidade", "unidade medida", "un"] },
+    { key: "status_sistema", label: "Status no sistema", syn: ["status", "status agendamento", "situacao"] },
+    { key: "ultimo_evento", label: "Último evento", syn: ["ultimo evento", "evento"] },
+    { key: "tempo_terminal", label: "Tempo no terminal", syn: ["tempo no terminal", "tempo terminal"] },
+    { key: "data_prevista", label: "Data prevista", syn: ["cota", "data cota", "data", "data prevista", "previsao", "data entrega", "previsao entrega", "data carregamento", "data saida", "data emissao"] },
+    { key: "periodo_inicio", label: "Início da janela (data e hora)", syn: ["periodo inicio", "inicio janela", "janela inicio", "inicio"] },
+    { key: "periodo_fim", label: "Fim da janela (data e hora)", syn: ["periodo fim", "fim janela", "janela fim", "fim"] },
+    { key: "nota_fiscal", label: "Nota fiscal", syn: ["notas fiscais numero", "nf", "nota", "nota fiscal", "nfe", "nf e", "numero nf", "n nf", "notas fiscais"] },
+    { key: "agendado_por", label: "Agendado por", syn: ["agendado por nome", "agendado por"] },
+    { key: "agendado_email", label: "E-mail de quem agendou", syn: ["agendado por e mail", "agendado por email", "email agendamento"] },
     { key: "dest_lat", label: "Latitude do destino", syn: ["lat", "latitude", "dest lat", "lat destino", "latitude destino"] },
     { key: "dest_lng", label: "Longitude do destino", syn: ["lng", "lon", "long", "longitude", "dest lng", "lng destino", "longitude destino"] },
     { key: "observacao", label: "Observação", syn: ["obs", "observacao", "observacoes"] }
   ];
-  const normHeader = (s) => String(s == null ? "" : s).normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+  const NUMBER_FIELDS = ["peso", "dest_lat", "dest_lng"];
+  const DATETIME_FIELDS = ["periodo_inicio", "periodo_fim"];
+  const normHeader = (s) => String(s == null ? "" : s).replace(/#/g, " numero ").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
 
-  function autoMap(headers){
+  // Liga cada campo à primeira coluna com nome conhecido — ignorando colunas sem nenhum dado
+  function autoMap(headers, data, dataStart){
     const normed = headers.map(normHeader);
+    const sample = data.slice(dataStart, dataStart + 300);
+    const hasData = (i) => sample.some(r => r && String(r[i] == null ? "" : r[i]).trim() !== "");
     const used = new Set();
     const mapping = {};
     for (const f of IMPORT_FIELDS) {
-      const cands = [normHeader(f.key), ...f.syn.map(normHeader)];
-      const idx = normed.findIndex((h, i) => !used.has(i) && h && cands.includes(h));
-      if (idx >= 0) { mapping[f.key] = idx; used.add(idx); }
+      const cands = [...f.syn.map(normHeader), normHeader(f.key)];   // sinônimos têm prioridade, na ordem listada
+      for (const cand of cands) {
+        const idx = normed.findIndex((h, i) => !used.has(i) && h && h === cand && hasData(i));
+        if (idx >= 0) { mapping[f.key] = idx; used.add(idx); break; }
+      }
     }
     return mapping;
+  }
+
+  // Descobre o cabeçalho: 1ª linha não vazia; se houver células mescladas para baixo a partir dela
+  // (relatórios com cabeçalho em 2–3 linhas), junta as linhas num nome só por coluna.
+  function detectHeader(data, merges){
+    const headerIdx = data.findIndex(r => (r || []).some(c => String(c == null ? "" : c).trim() !== ""));
+    if (headerIdx < 0) return null;
+    let depth = 1;
+    (merges || []).forEach(m => { if (m.s.r === headerIdx && m.e.r > m.s.r) depth = Math.max(depth, Math.min(4, m.e.r - headerIdx + 1)); });
+    const width = Math.max(...data.slice(headerIdx, headerIdx + depth + 50).map(r => (r || []).length));
+    const grid = [];
+    for (let d = 0; d < depth; d++) grid.push(Array.from({ length: width }, (_, c) => String((data[headerIdx + d] || [])[c] == null ? "" : data[headerIdx + d][c]).trim()));
+    (merges || []).forEach(m => {
+      if (m.e.r < headerIdx || m.s.r >= headerIdx + depth) return;
+      const v = String((data[m.s.r] || [])[m.s.c] == null ? "" : data[m.s.r][m.s.c]).trim();
+      for (let r = Math.max(m.s.r, headerIdx); r <= Math.min(m.e.r, headerIdx + depth - 1); r++)
+        for (let c = m.s.c; c <= m.e.c && c < width; c++) if (!grid[r - headerIdx][c]) grid[r - headerIdx][c] = v;
+    });
+    const headers = Array.from({ length: width }, (_, c) => {
+      const parts = [];
+      grid.forEach(row => { const v = row[c]; if (v && !parts.includes(v)) parts.push(v); });
+      return parts.join(" › ");
+    });
+    return { headerIdx, dataStart: headerIdx + depth, headers };
   }
 
   function parseCsvText(text){
@@ -1016,12 +1105,15 @@
     if (/\.(csv|txt)$/i.test(file.name)) {
       let text = new TextDecoder("utf-8").decode(buf);
       if (text.includes("�")) text = new TextDecoder("windows-1252").decode(buf);   // arquivos exportados do Excel/ERP em ANSI
-      return parseCsvText(text.replace(/^﻿/, ""));
+      return { data: parseCsvText(text.replace(/^﻿/, "")), merges: [] };
     }
     if (!window.XLSX) throw new Error("Leitor de planilhas ainda carregando; tente novamente em alguns segundos.");
     const wb = XLSX.read(buf, { type: "array", cellDates: true });
     const ws = wb.Sheets[wb.SheetNames[0]];
-    return XLSX.utils.sheet_to_json(ws, { header: 1, raw: true, defval: "" });
+    // começa na célula A1 para os índices baterem com as células mescladas (!merges)
+    const range = XLSX.utils.decode_range(ws["!ref"] || "A1");
+    range.s.r = 0; range.s.c = 0;
+    return { data: XLSX.utils.sheet_to_json(ws, { header: 1, raw: true, defval: "", blankrows: true, range }), merges: ws["!merges"] || [] };
   }
 
   const pad2 = (n) => String(n).padStart(2, "0");
@@ -1042,6 +1134,25 @@
     }
     return null;   // inválida
   }
+  // Data e hora → ISO (hora local do navegador). Aceita "dd/mm/aaaa hh:mm", ISO, Date e serial do Excel.
+  function normDateTime(v){
+    if (v == null || v === "") return "";
+    if (v instanceof Date && !isNaN(v)) return v.toISOString();
+    if (typeof v === "number" && v > 20000 && v < 80000) {
+      const ms = Math.round((v - 25569) * 86400000), u = new Date(ms);
+      return new Date(u.getUTCFullYear(), u.getUTCMonth(), u.getUTCDate(), u.getUTCHours(), u.getUTCMinutes()).toISOString();
+    }
+    const s = String(v).trim();
+    let m = s.match(/^(\d{1,2})[/.-](\d{1,2})[/.-](\d{2,4})(?:[ T,]+(\d{1,2}):(\d{2})(?::(\d{2}))?)?$/);
+    if (m) {
+      const y = m[3].length === 2 ? 2000 + +m[3] : +m[3];
+      const d = new Date(y, +m[2] - 1, +m[1], +(m[4] || 0), +(m[5] || 0), +(m[6] || 0));
+      return isNaN(d) ? null : d.toISOString();
+    }
+    m = s.match(/^\d{4}-\d{2}-\d{2}/);
+    if (m) { const d = new Date(s.length === 10 ? s + "T00:00:00" : s); return isNaN(d) ? null : d.toISOString(); }
+    return null;
+  }
   function normNumber(v){
     if (v == null || v === "") return "";
     if (typeof v === "number") return isFinite(v) ? String(v) : "";
@@ -1057,11 +1168,16 @@
     return String(v).trim();
   }
 
-  function buildImportRows(data, headerIdx, mapping){
+  function buildImportRows(data, dataStart, mapping){
     const out = [], localErrors = [];
-    for (let i = headerIdx + 1; i < data.length; i++) {
+    let skipped = 0;
+    for (let i = dataStart; i < data.length; i++) {
       const raw = data[i] || [];
       if (!raw.some(c => String(c == null ? "" : c).trim() !== "")) continue;
+      // linha de total/resumo (ex.: "132 veículos"): sem transportadora, sem motorista e quase vazia
+      const filled = Object.values(mapping).filter(ci => String(raw[ci] == null ? "" : raw[ci]).trim() !== "").length;
+      const val = (k) => (mapping[k] != null ? String(raw[mapping[k]] == null ? "" : raw[mapping[k]]).trim() : "");
+      if (!val("transportadora_cnpj") && !val("transportadora_nome") && !val("motorista_cpf") && filled <= 2) { skipped++; continue; }
       const line = i + 1;
       const row = { linha: line };
       const get = (k) => (mapping[k] != null ? raw[mapping[k]] : "");
@@ -1071,7 +1187,11 @@
           const d = normDate(v);
           if (d === null) { localErrors.push({ linha: line, codigo: normText(get("codigo")), aviso: `Data "${v}" não reconhecida — ignorada.` }); row[f.key] = ""; }
           else row[f.key] = d;
-        } else if (["peso", "dest_lat", "dest_lng"].includes(f.key)) {
+        } else if (DATETIME_FIELDS.includes(f.key)) {
+          const d = normDateTime(v);
+          if (d === null) { localErrors.push({ linha: line, codigo: normText(get("codigo")), aviso: `${f.label} "${v}" não reconhecida — ignorada.` }); row[f.key] = ""; }
+          else row[f.key] = d;
+        } else if (NUMBER_FIELDS.includes(f.key)) {
           const n = normNumber(v);
           if (n === null) { localErrors.push({ linha: line, codigo: normText(get("codigo")), aviso: `${f.label} "${v}" não é um número — ignorado.` }); row[f.key] = ""; }
           else row[f.key] = n;
@@ -1079,9 +1199,14 @@
           row[f.key] = normText(v);
         }
       }
+      // sem coluna de data: usa o dia do início da janela
+      if (!row.data_prevista && row.periodo_inicio) {
+        const d = new Date(row.periodo_inicio);
+        row.data_prevista = `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+      }
       out.push(row);
     }
-    return { rows: out, localWarnings: localErrors };
+    return { rows: out, localWarnings: localErrors, skipped };
   }
 
   async function renderImportar(content){
@@ -1098,7 +1223,7 @@
           <input type="file" id="imp-file" accept=".csv,.txt,.xlsx,.xls" hidden>
           <div style="margin-bottom:6px;">${icon("upload")}</div>
           <b>Clique para escolher</b> ou arraste o arquivo aqui<br>
-          <span class="small">CSV (separado por ; ou ,) ou planilha Excel (.xlsx / .xls) — a 1ª linha deve ter os nomes das colunas</span>
+          <span class="small">Relatório de agendamentos (.xlsx), outra planilha Excel ou CSV — o cabeçalho pode ter várias linhas</span>
         </label>
         <div id="imp-stage"></div>
       </div>
@@ -1127,17 +1252,18 @@
     async function handleFile(file){
       const stage = $("#imp-stage");
       stage.innerHTML = `<div class="empty">Lendo ${esc(file.name)}...</div>`;
-      let data;
-      try { data = await readImportFile(file); }
+      let data, merges;
+      try { ({ data, merges } = await readImportFile(file)); }
       catch (e) { stage.innerHTML = `<div class="result-box result-err">Não foi possível ler o arquivo: ${esc(errMsg(e))}</div>`; return; }
-      const headerIdx = data.findIndex(r => (r || []).some(c => String(c).trim() !== ""));
-      if (headerIdx < 0 || data.length - headerIdx < 2) { stage.innerHTML = `<div class="result-box result-err">O arquivo está vazio ou só tem o cabeçalho.</div>`; return; }
-      const headers = data[headerIdx].map(h => String(h == null ? "" : h).trim());
-      const mapping = autoMap(headers);
+      const hd = detectHeader(data, merges);
+      if (!hd || data.length - hd.dataStart < 1) { stage.innerHTML = `<div class="result-box result-err">O arquivo está vazio ou só tem o cabeçalho.</div>`; return; }
+      const { dataStart, headers } = hd;
+      const mapping = autoMap(headers, data, dataStart);
+      const totalLines = buildImportRows(data, dataStart, mapping).rows.length;
 
       const colOpts = (sel) => `<option value="">(não usar)</option>` + headers.map((h, i) => `<option value="${i}" ${sel === i ? "selected" : ""}>${esc(h || "Coluna " + (i + 1))}</option>`).join("");
       stage.innerHTML = `
-        <div class="section-title">${esc(file.name)} — ${data.length - headerIdx - 1} linha(s)</div>
+        <div class="section-title">${esc(file.name)} — ${totalLines} linha(s)</div>
         <div class="muted small">Confira de qual coluna do arquivo vem cada informação. Reconhecemos automaticamente as colunas com nomes conhecidos.</div>
         <div class="map-grid">
           ${IMPORT_FIELDS.map(f => `<div class="fl"><label>${esc(f.label)}${f.req ? ' <span class="req">*</span>' : ""}</label>
@@ -1158,9 +1284,9 @@
       function preview(){
         const mp = currentMapping();
         const used = IMPORT_FIELDS.filter(f => mp[f.key] != null);
-        const { rows } = buildImportRows(data.slice(0, headerIdx + 16), headerIdx, mp);
+        const { rows } = buildImportRows(data.slice(0, dataStart + 15), dataStart, mp);
         $("#imp-preview", stage).innerHTML = used.length ? `<table class="tbl"><thead><tr><th>Linha</th>${used.map(f => `<th>${esc(f.label)}</th>`).join("")}</tr></thead>
-          <tbody>${rows.map(r => `<tr><td class="muted">${r.linha}</td>${used.map(f => `<td>${esc(f.key === "data_prevista" ? fmtDate(r[f.key]).replace("—", "") : r[f.key])}</td>`).join("")}</tr>`).join("")}</tbody></table>`
+          <tbody>${rows.map(r => `<tr><td class="muted">${r.linha}</td>${used.map(f => `<td>${esc(f.key === "data_prevista" ? fmtDate(r[f.key]).replace("—", "") : DATETIME_FIELDS.includes(f.key) ? (r[f.key] ? fmtDateTime(r[f.key]) : "") : r[f.key])}</td>`).join("")}</tr>`).join("")}</tbody></table>`
           : `<div class="empty">Escolha as colunas acima.</div>`;
       }
       $$("[data-field]", stage).forEach(s => s.addEventListener("change", preview));
@@ -1172,7 +1298,7 @@
         if (mp.codigo == null) return setFormError(errEl, "Indique a coluna do código da carga.");
         if (mp.transportadora_cnpj == null && mp.transportadora_nome == null) return setFormError(errEl, "Indique a coluna do CNPJ ou do nome da transportadora.");
         setFormError(errEl, "");
-        const { rows, localWarnings } = buildImportRows(data, headerIdx, mp);
+        const { rows, localWarnings, skipped } = buildImportRows(data, dataStart, mp);
         const btn = $("#imp-go", stage);
         btn.disabled = true;
         const agg = { total: 0, inserted: 0, updated: 0, errors: [], warnings: localWarnings.slice() };
@@ -1196,7 +1322,7 @@
         const li = (x) => `<li>Linha ${esc(x.linha)}${x.codigo ? " (" + esc(x.codigo) + ")" : ""}: ${esc(x.erro || x.aviso)}</li>`;
         $("#imp-result", stage).innerHTML = `
           ${agg.fatal ? `<div class="result-box result-err"><b>A importação foi interrompida:</b> ${esc(agg.fatal)}</div>` : ""}
-          ${agg.total ? `<div class="result-box result-ok"><b>${agg.inserted}</b> rota(s) nova(s) e <b>${agg.updated}</b> atualizada(s), de ${agg.total} linha(s).</div>` : ""}
+          ${agg.total ? `<div class="result-box result-ok"><b>${agg.inserted}</b> rota(s) nova(s) e <b>${agg.updated}</b> atualizada(s), de ${agg.total} linha(s).${skipped ? ` ${skipped} linha(s) de total/resumo ignorada(s).` : ""}</div>` : ""}
           ${agg.errors.length ? `<div class="result-box result-err"><b>${agg.errors.length} linha(s) não importada(s):</b><ul>${agg.errors.map(li).join("")}</ul></div>` : ""}
           ${agg.warnings.length ? `<div class="result-box result-warn"><b>Avisos:</b><ul>${agg.warnings.map(li).join("")}</ul></div>` : ""}`;
         loadHistory();
@@ -1296,13 +1422,14 @@
     content.innerHTML = `
       <div class="page-head">
         <div><h2>${contr ? "Usuários" : "Motoristas"}</h2>
-          <p>${contr ? "Contratantes, usuários das transportadoras e motoristas." : "Motoristas da sua transportadora. Eles entram no app com o CPF e a senha que você definir."}</p></div>
+          <p>${contr ? "Contratantes, usuários das transportadoras e motoristas." : "Motoristas da sua transportadora. Eles entram no app com o CPF (ou documento) e a senha que você definir."}</p></div>
         <button class="btn btn-primary btn-sm" id="us-new">${icon("plus")} ${contr ? "Novo usuário" : "Novo motorista"}</button>
       </div>
       ${contr ? `<div class="filters">
         <select class="select" id="us-role"><option value="">Todos os perfis</option>${Object.keys(ROLE_LABEL).map(r => `<option value="${r}">${ROLE_LABEL[r]}</option>`).join("")}</select>
         <select class="select" id="us-carrier"><option value="">Todas as transportadoras</option>${state.carriers.map(c => `<option value="${c.id}">${esc(c.nome)}</option>`).join("")}</select>
       </div>` : ""}
+      <div id="us-pending"></div>
       <div class="card"><div class="table-wrap"><table class="tbl">
         <thead><tr><th>Nome</th>${contr ? "<th>Perfil</th><th>Transportadora</th>" : ""}<th>Login</th><th class="hide-sm">Telefone</th><th class="hide-sm">Placa</th><th>Última posição</th><th></th></tr></thead>
         <tbody id="us-body"></tbody>
@@ -1319,7 +1446,7 @@
       const cols = contr ? 8 : 6;
       $("#us-body").innerHTML = list.length ? list.map(u => {
         const st = statusById.get(u.id);
-        const login = u.role === "motorista" ? `CPF ${fmtCpf(u.cpf)}${isSyntheticEmail(u.email) ? "" : `<div class="muted small">${esc(u.email)}</div>`}` : esc(u.email);
+        const login = u.role === "motorista" ? `${digits(u.cpf).length === 11 ? "CPF" : "Doc."} ${fmtDoc(u.cpf)}${isSyntheticEmail(u.email) ? "" : `<div class="muted small">${esc(u.email)}</div>`}` : esc(u.email);
         const canManage = u.id !== state.me.id && (contr || u.role === "motorista");
         return `<tr>
           <td><b>${esc(u.nome)}</b> ${u.ativo ? "" : `<span class="badge badge-off">Inativo</span>`}</td>
@@ -1334,9 +1461,38 @@
       $$("[data-edit]").forEach(b => b.addEventListener("click", () => openUserForm(state.users.find(u => u.id === b.dataset.edit))));
       $$("[data-del]").forEach(b => b.addEventListener("click", () => deleteUser(state.users.find(u => u.id === b.dataset.del))));
     }
-    const refresh = async () => { await loadRefs(); draw(); };
+    // Motoristas que aparecem nas cargas importadas mas ainda não têm acesso ao app
+    let pending = [];
+    async function loadPending(){
+      const { data } = await sb.from("lg_routes").select("motorista_nome,motorista_cpf,motorista_telefone,placa,carrier_id")
+        .is("driver_id", null).in("status", ["pendente", "em_rota"]).not("motorista_cpf", "is", null).limit(2000);
+      const known = new Set(drivers().map(d => d.cpf));
+      const seen = new Map();
+      (data || []).forEach(x => { if (x.motorista_cpf && !known.has(x.motorista_cpf) && !seen.has(x.motorista_cpf)) seen.set(x.motorista_cpf, x); });
+      pending = Array.from(seen.values()).sort((a, b) => String(a.motorista_nome).localeCompare(String(b.motorista_nome)));
+    }
+    function drawPending(){
+      const el = $("#us-pending");
+      if (!el) return;
+      const cf = ($("#us-carrier") || {}).value;
+      const list = pending.filter(p => !cf || p.carrier_id === cf);
+      el.innerHTML = list.length ? `<div class="card" style="margin-bottom:14px;">
+        <div class="card-pad" style="padding-bottom:4px;">
+          <div class="card-title" style="margin-bottom:4px;">Motoristas das cargas ainda sem acesso (${list.length})</div>
+          <div class="muted small">Eles vieram no arquivo importado. Ao cadastrar, as cargas com o documento deles passam para eles automaticamente.</div>
+        </div>
+        <div class="table-wrap" style="max-height:260px;"><table class="tbl"><tbody>
+          ${list.map(p => `<tr><td><b>${esc(p.motorista_nome || "—")}</b></td><td>${esc(fmtDoc(p.motorista_cpf))}</td>${contr ? `<td>${esc(carrierName(p.carrier_id))}</td>` : ""}<td class="hide-sm">${esc(p.motorista_telefone || "")}</td><td class="hide-sm mono">${esc(p.placa || "")}</td>
+            <td class="actions"><button class="btn btn-primary btn-sm" data-pend="${esc(p.motorista_cpf)}">${icon("plus")} Cadastrar</button></td></tr>`).join("")}
+        </tbody></table></div></div>` : "";
+      $$("[data-pend]", el).forEach(b => b.addEventListener("click", () => {
+        const p = pending.find(x => x.motorista_cpf === b.dataset.pend);
+        openUserForm(null, { nome: p.motorista_nome, cpf: p.motorista_cpf, telefone: p.motorista_telefone, placa: p.placa, carrier_id: p.carrier_id });
+      }));
+    }
+    const refresh = async () => { await loadRefs(); await loadPending(); draw(); drawPending(); };
 
-    ["us-role", "us-carrier"].forEach(id => { const el = $("#" + id); if (el) el.addEventListener("change", draw); });
+    ["us-role", "us-carrier"].forEach(id => { const el = $("#" + id); if (el) el.addEventListener("change", () => { draw(); drawPending(); }); });
     $("#us-new").addEventListener("click", () => openUserForm(null));
 
     async function deleteUser(u){
@@ -1345,22 +1501,23 @@
       catch (e) { toast(errMsg(e), true); }
     }
 
-    function openUserForm(u){
+    function openUserForm(u, pre){
       const editing = !!u;
+      pre = pre || {};
       const role0 = u ? u.role : (contr ? "motorista" : "motorista");
       const m = openModal(`${modalHead(editing ? "Editar " + esc(u.nome) : (contr ? "Novo usuário" : "Novo motorista"))}
         <div class="form-error" id="uf-err"></div>
         <form id="uf-form" class="form-grid" autocomplete="off">
-          <div class="fl full"><label>Nome *</label><input class="input" id="uf-nome" required value="${esc(u ? u.nome : "")}"></div>
+          <div class="fl full"><label>Nome *</label><input class="input" id="uf-nome" required value="${esc(u ? u.nome : (pre.nome || ""))}"></div>
           ${contr && !editing ? `<div class="fl"><label>Perfil *</label><select class="select" id="uf-role">
               ${Object.keys(ROLE_LABEL).map(r => `<option value="${r}" ${r === role0 ? "selected" : ""}>${ROLE_LABEL[r]}</option>`).join("")}</select></div>` : ""}
           ${contr ? `<div class="fl" data-show="carrier"><label>Transportadora *</label><select class="select" id="uf-carrier">
-              <option value="">Selecione...</option>${state.carriers.filter(c => c.ativo || (u && u.carrier_id === c.id)).map(c => `<option value="${c.id}" ${u && u.carrier_id === c.id ? "selected" : ""}>${esc(c.nome)}</option>`).join("")}</select></div>` : ""}
+              <option value="">Selecione...</option>${state.carriers.filter(c => c.ativo || (u && u.carrier_id === c.id)).map(c => `<option value="${c.id}" ${(u ? u.carrier_id : pre.carrier_id) === c.id ? "selected" : ""}>${esc(c.nome)}</option>`).join("")}</select></div>` : ""}
           ${!editing ? `
-            <div class="fl" data-show="driver"><label>CPF * <span class="muted">(login do motorista)</span></label><input class="input" id="uf-cpf" inputmode="numeric" placeholder="000.000.000-00"></div>
+            <div class="fl" data-show="driver"><label>CPF / documento * <span class="muted">(login do motorista)</span></label><input class="input" id="uf-cpf" inputmode="numeric" placeholder="000.000.000-00" value="${esc(fmtDoc(pre.cpf))}"></div>
             <div class="fl"><label>E-mail <span data-show="driver" class="muted">(opcional)</span></label><input class="input" type="email" id="uf-email" placeholder="nome@empresa.com"></div>` : ""}
-          <div class="fl"><label>Telefone</label><input class="input" id="uf-tel" value="${esc(u ? u.telefone : "")}"></div>
-          <div class="fl" data-show="driver"><label>Placa padrão</label><input class="input" id="uf-placa" value="${esc(u ? u.placa : "")}" placeholder="ABC1D23"></div>
+          <div class="fl"><label>Telefone</label><input class="input" id="uf-tel" value="${esc(u ? u.telefone : (pre.telefone || ""))}"></div>
+          <div class="fl" data-show="driver"><label>Placa padrão</label><input class="input" id="uf-placa" value="${esc(u ? u.placa : (pre.placa || ""))}" placeholder="ABC1D23"></div>
           <div class="fl ${editing ? "" : "full"}"><label>${editing ? "Nova senha <span class=\"muted\">(deixe em branco para manter)</span>" : "Senha inicial *"}</label><input class="input" type="text" id="uf-pass" minlength="6" ${editing ? "" : "required"} placeholder="mínimo 6 caracteres" autocomplete="new-password"></div>
           ${editing ? `<label class="check full"><input type="checkbox" id="uf-ativo" ${u.ativo ? "checked" : ""}> Ativo (desmarque para bloquear o acesso)</label>` : ""}
           <div class="form-actions full"><button type="button" class="btn btn-ghost" data-close>Cancelar</button><button class="btn btn-primary" id="uf-save">Salvar</button></div>
@@ -1399,7 +1556,7 @@
           } else {
             const cpf = digits(($("#uf-cpf", m) || {}).value);
             const email = ($("#uf-email", m) || {}).value.trim();
-            if (role === "motorista" && cpf.length !== 11) throw new Error("Informe o CPF do motorista (11 dígitos).");
+            if (role === "motorista" && (cpf.length < 5 || cpf.length > 14)) throw new Error("Informe o CPF (11 dígitos) ou documento do motorista.");
             if (role !== "motorista" && !email) throw new Error("Informe o e-mail.");
             await callUsersFn({
               action: "create", nome: $("#uf-nome", m).value.trim(), role, carrier_id: carrierId,
@@ -1416,9 +1573,10 @@
       });
     }
 
-    await loadStatus();
+    await Promise.all([loadStatus(), loadPending()]);
     draw();
-    autoRefresh(async () => { if (!$("#modal-overlay").hidden) return; await Promise.all([loadRefs(), loadStatus()]); draw(); }, 30 * 1000);
+    drawPending();
+    autoRefresh(async () => { if (!$("#modal-overlay").hidden) return; await Promise.all([loadRefs(), loadStatus()]); await loadPending(); draw(); drawPending(); }, 30 * 1000);
   }
 
   /* ============================================================
@@ -1641,11 +1799,14 @@
           <div class="top"><div><div class="code">${esc(r.codigo)}</div><div class="muted small">${esc(r.cliente || "")}</div></div>${statusBadge(r.status)}</div>
           <div class="dest">${icon("pin")}<span>${esc(r.destino || "Destino não informado")}</span></div>
           <div class="info">
-            <div>Origem<br><b>${esc(r.origem || "—")}</b></div>
+            <div>Terminal / origem<br><b>${esc(r.origem || "—")}</b></div>
             <div>Previsão<br><b>${fmtDate(r.data_prevista)}</b></div>
             <div>Nota fiscal<br><b>${esc(r.nota_fiscal || "—")}</b></div>
             <div>Placa<br><b>${esc(r.placa || "—")}</b></div>
-            ${r.produto || r.peso != null ? `<div>Produto<br><b>${esc(r.produto || "—")}</b></div><div>Peso<br><b>${r.peso == null ? "—" : esc(String(r.peso).replace(".", ","))}</b></div>` : ""}
+            ${r.produto || r.peso != null ? `<div>Produto<br><b>${esc(r.produto || "—")}</b></div><div>Quantidade<br><b>${esc(fmtQtd(r))}</b></div>` : ""}
+            ${r.periodo_inicio ? `<div style="grid-column:1/-1;">Janela<br><b>${esc(fmtJanela(r))}</b></div>` : ""}
+            ${r.operacao ? `<div style="grid-column:1/-1;">Operação<br><b>${esc(r.operacao)}</b></div>` : ""}
+            ${r.placas_carreta ? `<div style="grid-column:1/-1;">Carretas<br><b>${esc(r.placas_carreta)}</b></div>` : ""}
             ${r.observacao ? `<div style="grid-column:1/-1;">Observação<br><b>${esc(r.observacao)}</b></div>` : ""}
             ${r.finished_at ? `<div style="grid-column:1/-1;">${r.status === "entregue" ? "Entregue" : "Encerrada"} em<br><b>${fmtDateTime(r.finished_at)}</b></div>` : ""}
           </div>
