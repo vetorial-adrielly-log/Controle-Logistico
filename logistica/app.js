@@ -1035,6 +1035,7 @@
     { key: "observacao", label: "Observação", syn: ["obs", "observacao", "observacoes"] }
   ];
   const NUMBER_FIELDS = ["peso", "dest_lat", "dest_lng"];
+  const DRIVER_FIELDS = ["motorista_nome", "motorista_cpf", "motorista_telefone"];
   const DATETIME_FIELDS = ["periodo_inicio", "periodo_fim"];
   const normHeader = (s) => String(s == null ? "" : s).replace(/#/g, " numero ").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
 
@@ -1270,6 +1271,7 @@
             <select class="select" data-field="${f.key}">${colOpts(mapping[f.key])}</select></div>`).join("")}
         </div>
         <label class="check"><input type="checkbox" id="imp-create" checked> Cadastrar automaticamente transportadoras que ainda não existem</label>
+        <label class="check" style="margin-top:6px;"><input type="checkbox" id="imp-drivers"> Importar dados dos motoristas (nome, documento e telefone)</label>
         <div class="section-title">Pré-visualização</div>
         <div class="card table-wrap" style="max-height:340px;" id="imp-preview"></div>
         <div class="form-error" id="imp-err" style="margin-top:12px;"></div>
@@ -1283,13 +1285,15 @@
       };
       function preview(){
         const mp = currentMapping();
-        const used = IMPORT_FIELDS.filter(f => mp[f.key] != null);
+        const withDrivers = $("#imp-drivers", stage) && $("#imp-drivers", stage).checked;
+        const used = IMPORT_FIELDS.filter(f => mp[f.key] != null && (withDrivers || !DRIVER_FIELDS.includes(f.key)));
         const { rows } = buildImportRows(data.slice(0, dataStart + 15), dataStart, mp);
         $("#imp-preview", stage).innerHTML = used.length ? `<table class="tbl"><thead><tr><th>Linha</th>${used.map(f => `<th>${esc(f.label)}</th>`).join("")}</tr></thead>
           <tbody>${rows.map(r => `<tr><td class="muted">${r.linha}</td>${used.map(f => `<td>${esc(f.key === "data_prevista" ? fmtDate(r[f.key]).replace("—", "") : DATETIME_FIELDS.includes(f.key) ? (r[f.key] ? fmtDateTime(r[f.key]) : "") : r[f.key])}</td>`).join("")}</tr>`).join("")}</tbody></table>`
           : `<div class="empty">Escolha as colunas acima.</div>`;
       }
       $$("[data-field]", stage).forEach(s => s.addEventListener("change", preview));
+      $("#imp-drivers", stage).addEventListener("change", preview);
       preview();
 
       $("#imp-go", stage).addEventListener("click", async () => {
@@ -1299,6 +1303,8 @@
         if (mp.transportadora_cnpj == null && mp.transportadora_nome == null) return setFormError(errEl, "Indique a coluna do CNPJ ou do nome da transportadora.");
         setFormError(errEl, "");
         const { rows, localWarnings, skipped } = buildImportRows(data, dataStart, mp);
+        // Dados pessoais dos motoristas só vão para o banco se a opção estiver marcada
+        if (!$("#imp-drivers", stage).checked) DRIVER_FIELDS.forEach(k => rows.forEach(r => { r[k] = ""; }));
         const btn = $("#imp-go", stage);
         btn.disabled = true;
         const agg = { total: 0, inserted: 0, updated: 0, errors: [], warnings: localWarnings.slice() };
