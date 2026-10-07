@@ -92,7 +92,8 @@ exports.handler = async (event) => {
     if (role !== 'contratante' && !carrierId) return json(400, { error: 'Selecione a transportadora.' });
 
     if (role === 'motorista') {
-      if (!cpf || cpf.length !== 11) return json(400, { error: 'Informe um CPF válido (11 dígitos) para o motorista.' });
+      // CPF (11 dígitos) ou documento de motorista estrangeiro
+      if (!cpf || cpf.length < 5 || cpf.length > 14) return json(400, { error: 'Informe o CPF (11 dígitos) ou o documento do motorista.' });
       if (!email) email = `${cpf}@${DRIVER_EMAIL_DOMAIN}`;
     }
     if (!email) return json(400, { error: 'Informe o e-mail.' });
