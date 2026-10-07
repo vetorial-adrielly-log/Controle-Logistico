@@ -4,3 +4,6 @@ node_modules/
 .DS_Store
 .env.local
 .env*.local
+app-android/node_modules/
+app-android/android/
+app-android/*.apk

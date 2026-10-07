@@ -298,6 +298,30 @@ Também aceita outras planilhas e CSV (veja `logistica/modelo-importacao.csv`).
 - Motorista esqueceu a senha: a transportadora edita o motorista em **Motoristas** e define uma
   nova senha.
 
+## App Android (rastreamento com a tela bloqueada)
+
+O site roda no navegador, mas o navegador só envia a localização com o app aberto na tela. Para
+rastrear com a **tela bloqueada**, existe o **app Android** (pasta `app-android/`, feito com
+Capacitor + plugin de localização em segundo plano):
+
+- O app abre o próprio site publicado (endereço em `app-android/site-url.txt`), então tudo o que
+  muda no site chega ao app sem reinstalar.
+- Ao iniciar uma rota, o Android mostra a notificação fixa **"Rastreamento ativo"** e a posição
+  continua sendo enviada com a tela bloqueada ou com outro app aberto. Ao finalizar, a notificação
+  some.
+- **Gerar o APK:** é automático pelo GitHub Actions (`.github/workflows/android.yml`) sempre que
+  algo em `app-android/` muda na `main`; ou manualmente em **Actions → App Android (APK) → Run
+  workflow**. O arquivo `rastreamento-logistico.apk` fica em **Releases** e nos *Artifacts* da
+  execução.
+- **Instalar no celular:** envie o APK ao motorista (WhatsApp, e-mail…), abra o arquivo e permita
+  "instalar apps desta fonte". Na primeira rota, permita a **localização** e as **notificações**.
+- Em alguns aparelhos (Xiaomi, Samsung, Motorola…) vale desativar a **economia de bateria** para o
+  app (Configurações → Apps → Rastreamento Logístico → Bateria → Sem restrições), senão o sistema
+  pode encerrar o rastreamento depois de muito tempo bloqueado.
+- A assinatura do APK usa `app-android/release.keystore` (versionado no repositório, só para
+  distribuição interna). Para publicar na Play Store, gere uma chave nova e guarde-a como
+  *secret* do GitHub.
+
 ## Segurança
 
 - Todas as regras de acesso ficam no banco (RLS): a transportadora só consegue ler os próprios

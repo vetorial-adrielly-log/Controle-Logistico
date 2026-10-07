@@ -1,0 +1,88 @@
+# Gera o APK do app Android do Rastreamento Logístico.
+# - Automático a cada mudança em app-android/ na main
+# - Manual: Actions → "App Android (APK)" → Run workflow (pode informar outro endereço do site)
+# O APK fica em: Actions → execução → Artifacts, e em Releases (android-v<nº>).
+name: App Android (APK)
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "app-android/**"
+      - ".github/workflows/android.yml"
+  workflow_dispatch:
+    inputs:
+      site_url:
+        description: "Endereço do site de rastreamento (vazio = usa app-android/site-url.txt)"
+        required: false
+
+permissions:
+  contents: write
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: app-android
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Endereço do site
+        run: |
+          URL="${{ github.event.inputs.site_url }}"
+          [ -z "$URL" ] && URL="$(head -n1 site-url.txt | tr -d '[:space:]')"
+          echo "SITE_URL=$URL" >> "$GITHUB_ENV"
+          echo "App vai abrir: $URL"
+
+      - name: Instalar dependências
+        run: npm ci --no-audit --no-fund
+
+      - name: Gerar projeto Android
+        run: |
+          npx cap add android
+          npx @capacitor/assets generate --android \
+            --iconBackgroundColor '#284D38' --iconBackgroundColorDark '#284D38' \
+            --splashBackgroundColor '#284D38' --splashBackgroundColorDark '#284D38'
+          # nome do canal da notificação de rastreamento
+          sed -i 's#</resources>#    <string name="capacitor_background_geolocation_notification_channel_name">Rastreamento da rota</string>\n</resources>#' \
+            android/app/src/main/res/values/strings.xml
+          # versão = nº da execução (permite instalar por cima da anterior)
+          sed -i "s/versionCode 1$/versionCode ${{ github.run_number }}/; s/versionName \"1.0\"/versionName \"1.0.${{ github.run_number }}\"/" android/app/build.gradle
+          npx cap sync android
+
+      - name: Compilar
+        working-directory: app-android/android
+        run: ./gradlew assembleRelease --no-daemon --stacktrace
+
+      - name: Assinar APK
+        run: |
+          BT="$(ls -d $ANDROID_HOME/build-tools/* | sort -V | tail -n1)"
+          "$BT/zipalign" -p -f 4 android/app/build/outputs/apk/release/app-release-unsigned.apk aligned.apk
+          "$BT/apksigner" sign --ks release.keystore --ks-key-alias rastreamento \
+            --ks-pass pass:rastreamento-app --key-pass pass:rastreamento-app \
+            --out rastreamento-logistico.apk aligned.apk
+          "$BT/apksigner" verify rastreamento-logistico.apk
+          ls -la rastreamento-logistico.apk
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: rastreamento-logistico-apk
+          path: app-android/rastreamento-logistico.apk
+
+      - name: Publicar em Releases
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: android-v${{ github.run_number }}
+          name: App Android v1.0.${{ github.run_number }}
+          body: "App Android do Rastreamento Logístico — abre ${{ env.SITE_URL }}"
+          files: app-android/rastreamento-logistico.apk

@@ -1621,8 +1621,16 @@
   /* ============================================================
      RASTREADOR (motorista)
      ============================================================ */
+  // Dentro do app Android (Capacitor) o GPS roda num serviço nativo e continua com a tela
+  // bloqueada; no navegador usamos a geolocalização do próprio navegador.
+  const nativeApp = () => {
+    const c = window.Capacitor;
+    return c && typeof c.isNativePlatform === "function" && c.isNativePlatform() && typeof c.nativeCallback === "function" ? c : null;
+  };
+
   const tracker = {
     active: false,
+    nativeWatchId: null,
     routeId: null,
     watchId: null,
     status: "idle",           // idle | waiting | on | denied | unavailable | insecure
@@ -1643,11 +1651,32 @@
     start(routeId){
       this.routeId = routeId;
       if (this.active) { this.emit(); return; }
-      if (!window.isSecureContext) { this.status = "insecure"; this.emit(); return; }
-      if (!("geolocation" in navigator)) { this.status = "unavailable"; this.emit(); return; }
+      if (!nativeApp()) {
+        if (!window.isSecureContext) { this.status = "insecure"; this.emit(); return; }
+        if (!("geolocation" in navigator)) { this.status = "unavailable"; this.emit(); return; }
+      }
       this.active = true;
       this.status = "waiting";
-      this.watchId = navigator.geolocation.watchPosition(
+      const cap = nativeApp();
+      if (cap) {
+        // serviço em primeiro plano com notificação fixa: segue rastreando com a tela bloqueada
+        this.nativeWatchId = cap.nativeCallback("BackgroundGeolocation", "addWatcher", {
+          backgroundTitle: "Rastreamento ativo",
+          backgroundMessage: "Sua localização está sendo enviada durante a rota.",
+          requestPermissions: true,
+          stale: false,
+          distanceFilter: 25
+        }, (loc, err) => {
+          if (err) {
+            this.status = err.code === "NOT_AUTHORIZED" ? "denied" : "waiting";
+            if (err.code === "NOT_AUTHORIZED") this.stopWatch();
+            this.emit();
+            return;
+          }
+          if (!loc) return;
+          this.onPosition({ coords: { latitude: loc.latitude, longitude: loc.longitude, accuracy: loc.accuracy, speed: loc.speed, heading: loc.bearing }, timestamp: loc.time || Date.now() });
+        });
+      } else this.watchId = navigator.geolocation.watchPosition(
         (p) => this.onPosition(p),
         (err) => {
           this.status = err.code === 1 ? "denied" : "waiting";
@@ -1667,6 +1696,13 @@
     stopWatch(){
       if (this.watchId != null) navigator.geolocation.clearWatch(this.watchId);
       this.watchId = null;
+      const cap = nativeApp();
+      if (cap && this.nativeWatchId != null) cap.nativePromise("BackgroundGeolocation", "removeWatcher", { id: this.nativeWatchId }).catch(() => {});
+      this.nativeWatchId = null;
+    },
+    openSettings(){
+      const cap = nativeApp();
+      if (cap) cap.nativePromise("BackgroundGeolocation", "openSettings", {}).catch(() => {});
     },
     stop(){
       this.stopWatch();
@@ -1712,7 +1748,7 @@
       this.flushing = true;
       const batch = q.slice(0, 200);
       try {
-        const { error } = await sb.from("lg_locations").insert(batch);
+        const { error } = await this.insertBatch(batch);
         // erro de permissão (rota reatribuída etc.) não pode travar a fila: descarta o lote
         if (!error || error.code === "42501" || error.code === "23503") {
           this.writeQueue(this.readQueue().slice(batch.length));
@@ -1721,6 +1757,27 @@
       this.flushing = false;
       this.emit();
       if (this.readQueue().length && navigator.onLine) setTimeout(() => this.flush(), 1000);
+    },
+    // No app, envia pelo HTTP nativo: o Android limita requisições do WebView em segundo plano
+    async insertBatch(batch){
+      const cap = nativeApp();
+      if (!cap) return sb.from("lg_locations").insert(batch);
+      const { data: { session } } = await sb.auth.getSession();
+      if (!session) return { error: { code: "no-session" } };
+      const res = await cap.nativePromise("CapacitorHttp", "request", {
+        url: SUPABASE_URL + "/rest/v1/lg_locations",
+        method: "POST",
+        headers: {
+          apikey: SUPABASE_ANON_KEY,
+          Authorization: "Bearer " + session.access_token,
+          "Content-Type": "application/json",
+          Prefer: "return=minimal"
+        },
+        data: batch
+      });
+      if (res.status >= 200 && res.status < 300) return { error: null };
+      const body = typeof res.data === "string" ? (() => { try { return JSON.parse(res.data); } catch (_) { return {}; } })() : (res.data || {});
+      return { error: { code: body.code || String(res.status), message: body.message || "HTTP " + res.status } };
     },
     async requestWakeLock(){
       try {
@@ -1737,7 +1794,7 @@
     if (document.visibilityState === "visible" && tracker.active) { tracker.requestWakeLock(); tracker.flush(); }
   });
   window.addEventListener("beforeunload", (e) => {
-    if (tracker.active) { e.preventDefault(); e.returnValue = ""; }
+    if (tracker.active && !nativeApp()) { e.preventDefault(); e.returnValue = ""; }
   });
 
   /* ============================================================
@@ -1774,12 +1831,15 @@
         cls = "on";
         title = `Localização ativa · rota ${esc(ar.codigo)}`;
         sub = `Última posição ${tracker.lastFix ? esc(timeAgo(tracker.lastFix.ts)) : "—"}${tracker.lastFix && tracker.lastFix.accuracy ? ` (±${Math.round(tracker.lastFix.accuracy)} m)` : ""}`
-          + (pend ? ` · ${pend} posição(ões) aguardando internet` : "") + ". Mantenha o app aberto durante a viagem.";
+          + (pend ? ` · ${pend} posição(ões) aguardando internet` : "")
+          + (nativeApp() ? ". Pode bloquear a tela — o rastreamento continua (notificação “Rastreamento ativo”)." : ". Mantenha o app aberto durante a viagem.");
       } else if (tracker.status === "denied") {
         cls = "off";
         title = "Localização bloqueada";
-        sub = "Permita o acesso à localização para este site nas configurações do navegador e toque em “Tentar novamente”.";
-        btn = `<button class="btn btn-primary btn-sm" id="drv-retry">Tentar novamente</button>`;
+        sub = nativeApp()
+          ? "Permita a localização para o app (Configurações → Permissões → Localização) e toque em “Tentar novamente”."
+          : "Permita o acesso à localização para este site nas configurações do navegador e toque em “Tentar novamente”.";
+        btn = `${nativeApp() ? `<button class="btn btn-ghost btn-sm" id="drv-settings">Configurações</button> ` : ""}<button class="btn btn-primary btn-sm" id="drv-retry">Tentar novamente</button>`;
       } else if (tracker.status === "insecure") {
         cls = "off";
         title = "Endereço sem HTTPS";
@@ -1801,6 +1861,8 @@
       el.innerHTML = `<div class="track-banner ${cls}"><span class="pulse"></span><div class="grow"><div class="title">${title}</div><div class="sub">${sub}</div></div>${btn}</div>`;
       const retry = $("#drv-retry", el);
       if (retry) retry.addEventListener("click", () => { tracker.stop(); if (ar) tracker.start(ar.id); });
+      const settings = $("#drv-settings", el);
+      if (settings) settings.addEventListener("click", () => tracker.openSettings());
     }
 
     function drawList(){
