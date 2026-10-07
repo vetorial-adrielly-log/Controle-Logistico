@@ -1,0 +1,328 @@
+-- Cards Visão Geral (tabela 'Medidas - animações')
+-- Cole como fórmula da medida existente "Cards Visão Geral".
+-- Mudanças: Carvão com meta da Gestão da Partição (mesmo formato dos demais),
+-- "PEDIDOS" -> "INICIADOS", e células CIF / FOB nos cartões de Ferro Gusa, Minério e Co Produtos.
+
+-- =========================================================
+-- Recortes de Item. Ajuste aqui se entrar um item novo.
+-- =========================================================
+VAR _itGusa    = { "FERRO GUSA", "FERRO GUSA-FORMATO IRREGULAR" }
+VAR _itMinerio = { "MINERIO DE FERRO", "MINERIO DE FERRO HT-15" }
+VAR _itCoProd  = { "MOINHA", "ESCORIA", "FINOS DE MINERIO", "RESIDUO DE FERRO FUNDIDO LINGOTEIRA" }
+
+-- =========================================================
+-- FERRO GUSA
+-- =========================================================
+VAR _gExp  = CALCULATE ( [Total Expedido],         KEEPFILTERS ( f_MetaPV[Item] IN _itGusa ) )
+VAR _gMeta = CALCULATE ( [Soma meta pasta],        KEEPFILTERS ( f_MetaPV[Item] IN _itGusa ) )
+VAR _gAtin = CALCULATE ( [% Atingimento],          KEEPFILTERS ( f_MetaPV[Item] IN _itGusa ) )
+VAR _gTend = CALCULATE ( [Tendencia],              KEEPFILTERS ( f_MetaPV[Item] IN _itGusa ) )
+VAR _gRit  = CALCULATE ( [% Ritmo],                KEEPFILTERS ( f_MetaPV[Item] IN _itGusa ) )
+VAR _gPrev = CALCULATE ( [Previsão],               KEEPFILTERS ( f_MetaPV[Item] IN _itGusa ) )
+VAR _gMed  = CALCULATE ( [Média Expedição Diária], KEEPFILTERS ( f_MetaPV[Item] IN _itGusa ) )
+VAR _gNec  = CALCULATE ( [Media Necessaria],       KEEPFILTERS ( f_MetaPV[Item] IN _itGusa ) )
+VAR _gDisp = CALCULATE ( [lacuna],                 KEEPFILTERS ( f_MetaPV[Item] IN _itGusa ) )
+VAR _gPed  = CALCULATE ( [Total de Pedidos],       KEEPFILTERS ( f_MetaPV[Item] IN _itGusa ) )
+VAR _gNao  = CALCULATE ( [Pedidos Não Iniciados],  KEEPFILTERS ( f_MetaPV[Item] IN _itGusa ) )
+VAR _gCif  = CALCULATE ( DISTINCTCOUNT ( f_MetaPV[PV] ), KEEPFILTERS ( f_MetaPV[Item] IN _itGusa ), KEEPFILTERS ( f_MetaPV[Incoterms] = "CIF" ), KEEPFILTERS ( f_MetaPV[Quantidade] > 0 ) )
+VAR _gFob  = CALCULATE ( DISTINCTCOUNT ( f_MetaPV[PV] ), KEEPFILTERS ( f_MetaPV[Item] IN _itGusa ), KEEPFILTERS ( f_MetaPV[Incoterms] = "FOB" ), KEEPFILTERS ( f_MetaPV[Quantidade] > 0 ) )
+
+-- =========================================================
+-- MINÉRIO DE FERRO
+-- =========================================================
+VAR _mExp  = CALCULATE ( [Total Expedido],         KEEPFILTERS ( f_MetaPV[Item] IN _itMinerio ) )
+VAR _mMeta = CALCULATE ( [Soma meta pasta],        KEEPFILTERS ( f_MetaPV[Item] IN _itMinerio ) )
+VAR _mAtin = CALCULATE ( [% Atingimento],          KEEPFILTERS ( f_MetaPV[Item] IN _itMinerio ) )
+VAR _mTend = CALCULATE ( [Tendencia],              KEEPFILTERS ( f_MetaPV[Item] IN _itMinerio ) )
+VAR _mRit  = CALCULATE ( [% Ritmo],                KEEPFILTERS ( f_MetaPV[Item] IN _itMinerio ) )
+VAR _mPrev = CALCULATE ( [Previsão],               KEEPFILTERS ( f_MetaPV[Item] IN _itMinerio ) )
+VAR _mMed  = CALCULATE ( [Média Expedição Diária], KEEPFILTERS ( f_MetaPV[Item] IN _itMinerio ) )
+VAR _mNec  = CALCULATE ( [Media Necessaria],       KEEPFILTERS ( f_MetaPV[Item] IN _itMinerio ) )
+VAR _mDisp = CALCULATE ( [lacuna],                 KEEPFILTERS ( f_MetaPV[Item] IN _itMinerio ) )
+VAR _mPed  = CALCULATE ( [Total de Pedidos],       KEEPFILTERS ( f_MetaPV[Item] IN _itMinerio ) )
+VAR _mNao  = CALCULATE ( [Pedidos Não Iniciados],  KEEPFILTERS ( f_MetaPV[Item] IN _itMinerio ) )
+VAR _mCif  = CALCULATE ( DISTINCTCOUNT ( f_MetaPV[PV] ), KEEPFILTERS ( f_MetaPV[Item] IN _itMinerio ), KEEPFILTERS ( f_MetaPV[Incoterms] = "CIF" ), KEEPFILTERS ( f_MetaPV[Quantidade] > 0 ) )
+VAR _mFob  = CALCULATE ( DISTINCTCOUNT ( f_MetaPV[PV] ), KEEPFILTERS ( f_MetaPV[Item] IN _itMinerio ), KEEPFILTERS ( f_MetaPV[Incoterms] = "FOB" ), KEEPFILTERS ( f_MetaPV[Quantidade] > 0 ) )
+
+-- =========================================================
+-- CO PRODUTOS
+-- =========================================================
+VAR _cExp  = CALCULATE ( [Total Expedido],         KEEPFILTERS ( f_MetaPV[Item] IN _itCoProd ) )
+VAR _cMeta = CALCULATE ( [Soma meta pasta],        KEEPFILTERS ( f_MetaPV[Item] IN _itCoProd ) )
+VAR _cAtin = CALCULATE ( [% Atingimento],          KEEPFILTERS ( f_MetaPV[Item] IN _itCoProd ) )
+VAR _cTend = CALCULATE ( [Tendencia],              KEEPFILTERS ( f_MetaPV[Item] IN _itCoProd ) )
+VAR _cRit  = CALCULATE ( [% Ritmo],                KEEPFILTERS ( f_MetaPV[Item] IN _itCoProd ) )
+VAR _cPrev = CALCULATE ( [Previsão],               KEEPFILTERS ( f_MetaPV[Item] IN _itCoProd ) )
+VAR _cMed  = CALCULATE ( [Média Expedição Diária], KEEPFILTERS ( f_MetaPV[Item] IN _itCoProd ) )
+VAR _cNec  = CALCULATE ( [Media Necessaria],       KEEPFILTERS ( f_MetaPV[Item] IN _itCoProd ) )
+VAR _cDisp = CALCULATE ( [lacuna],                 KEEPFILTERS ( f_MetaPV[Item] IN _itCoProd ) )
+VAR _cPed  = CALCULATE ( [Total de Pedidos],       KEEPFILTERS ( f_MetaPV[Item] IN _itCoProd ) )
+VAR _cNao  = CALCULATE ( [Pedidos Não Iniciados],  KEEPFILTERS ( f_MetaPV[Item] IN _itCoProd ) )
+VAR _cCif  = CALCULATE ( DISTINCTCOUNT ( f_MetaPV[PV] ), KEEPFILTERS ( f_MetaPV[Item] IN _itCoProd ), KEEPFILTERS ( f_MetaPV[Incoterms] = "CIF" ), KEEPFILTERS ( f_MetaPV[Quantidade] > 0 ) )
+VAR _cFob  = CALCULATE ( DISTINCTCOUNT ( f_MetaPV[PV] ), KEEPFILTERS ( f_MetaPV[Item] IN _itCoProd ), KEEPFILTERS ( f_MetaPV[Incoterms] = "FOB" ), KEEPFILTERS ( f_MetaPV[Quantidade] > 0 ) )
+
+-- =========================================================
+-- CARVÃO (meta: Gestão da Partição · realizado: base de puxada, m³)
+-- =========================================================
+VAR _vExp  = [Carregado Carvão (m³)]
+VAR _vMeta = [Meta Carvão (m³)]
+VAR _vAtin = [% Atingimento Carvão]
+VAR _vTend = [Tendência Carvão (m³)]
+VAR _vRit  = [% Ritmo Carvão]
+VAR _vPrev = [Previsão Carvão]
+VAR _vMed  = [Média Diária Carvão]
+VAR _vNec  = [Média Necessária Carvão]
+VAR _vDisp = [Lacuna Carvão]
+-- UPC x destino com meta no mês: iniciadas (já carregou) e não iniciadas
+VAR _vUpcs =
+    FILTER (
+        CROSSJOIN ( VALUES ( d_UPC_Carvao[UPC Partição] ), VALUES ( d_Destino[DESTINO] ) ),
+        [Meta Carvão (m³)] > 0
+    )
+VAR _vIni  = COUNTROWS ( FILTER ( _vUpcs, [Carregado Carvão (m³)] > 0 ) )
+VAR _vNao  = COUNTROWS ( FILTER ( _vUpcs, NOT ( [Carregado Carvão (m³)] > 0 ) ) )
+VAR _vCgCarr = [Carregado]
+VAR _vCgCanc = [Cancelado]
+
+-- =========================================================
+-- MATÉRIA PRIMA (f_MetaPC)
+-- =========================================================
+VAR _pRec  = [Expedido MP Dia]
+VAR _pMeta = [Meta (t)]
+VAR _pAlc  = [% Alcance]
+VAR _pTend = [Tendência MP]
+VAR _pRit  = [% Ritmo MP]
+VAR _pPrev = [Previsão MP]
+VAR _pMed  = [Média Diária MP (Mês)]
+VAR _pNec  = [Média Necessária MP]
+VAR _pDisp = [Lacuna MP]
+VAR _pPed  =
+    SUMX (
+        VALUES ( f_MetaPC[ID] ),
+        IF ( [Meta (t)] > 0 && [Expedido MP Dia] > 0, 1 )
+    )
+VAR _pNao  =
+    SUMX (
+        VALUES ( f_MetaPC[ID] ),
+        IF ( [Meta (t)] > 0 && NOT ( [Expedido MP Dia] > 0 ), 1 )
+    )
+
+-- =========================================================
+-- Sinalização
+--   % Ritmo  : pisca verde se a tendência alcança a meta, vermelho se não
+--   Dispersão: pisca verde se o ritmo está acima do necessário
+--   Não inic.: pisca vermelho se houver pedido sem expedição; verde fixo se zero
+-- =========================================================
+VAR _gNaoN = COALESCE ( _gNao, 0 )
+VAR _mNaoN = COALESCE ( _mNao, 0 )
+VAR _cNaoN = COALESCE ( _cNao, 0 )
+VAR _pNaoN = COALESCE ( _pNao, 0 )
+VAR _vNaoN = COALESCE ( _vNao, 0 )
+
+VAR _clsRG = IF ( _gRit >= 1, "cOk", "cBad" )
+VAR _clsRM = IF ( _mRit >= 1, "cOk", "cBad" )
+VAR _clsRC = IF ( _cRit >= 1, "cOk", "cBad" )
+VAR _clsRV = IF ( _vRit >= 1, "cOk", "cBad" )
+VAR _clsRP = IF ( _pRit >= 1, "cOk", "cBad" )
+VAR _corRG = IF ( _gRit >= 1, "#1D7A52", "#C62E2E" )
+VAR _corRM = IF ( _mRit >= 1, "#1D7A52", "#C62E2E" )
+VAR _corRC = IF ( _cRit >= 1, "#1D7A52", "#C62E2E" )
+VAR _corRV = IF ( _vRit >= 1, "#1D7A52", "#C62E2E" )
+VAR _corRP = IF ( _pRit >= 1, "#1D7A52", "#C62E2E" )
+
+VAR _clsDG = IF ( _gDisp >= 0, "cOk", "cBad" )
+VAR _clsDM = IF ( _mDisp >= 0, "cOk", "cBad" )
+VAR _clsDC = IF ( _cDisp >= 0, "cOk", "cBad" )
+VAR _clsDP = IF ( _pDisp >= 0, "cOk", "cBad" )
+VAR _clsDV = IF ( _vDisp >= 0, "cOk", "cBad" )
+VAR _corDG = IF ( _gDisp >= 0, "#1D7A52", "#C62E2E" )
+VAR _corDM = IF ( _mDisp >= 0, "#1D7A52", "#C62E2E" )
+VAR _corDC = IF ( _cDisp >= 0, "#1D7A52", "#C62E2E" )
+VAR _corDP = IF ( _pDisp >= 0, "#1D7A52", "#C62E2E" )
+VAR _corDV = IF ( _vDisp >= 0, "#1D7A52", "#C62E2E" )
+
+VAR _clsNG = IF ( _gNaoN > 0, "cBad", "sOk" )
+VAR _clsNM = IF ( _mNaoN > 0, "cBad", "sOk" )
+VAR _clsNC = IF ( _cNaoN > 0, "cBad", "sOk" )
+VAR _clsNP = IF ( _pNaoN > 0, "cBad", "sOk" )
+VAR _clsNV = IF ( _vNaoN > 0, "cBad", "sOk" )
+VAR _corNG = IF ( _gNaoN > 0, "#C62E2E", "#1D7A52" )
+VAR _corNM = IF ( _mNaoN > 0, "#C62E2E", "#1D7A52" )
+VAR _corNC = IF ( _cNaoN > 0, "#C62E2E", "#1D7A52" )
+VAR _corNP = IF ( _pNaoN > 0, "#C62E2E", "#1D7A52" )
+VAR _corNV = IF ( _vNaoN > 0, "#C62E2E", "#1D7A52" )
+VAR _txtNG = IF ( _gNaoN > 0, FORMAT ( _gNaoN, "#,##0" ), "&#10003; 0" )
+VAR _txtNM = IF ( _mNaoN > 0, FORMAT ( _mNaoN, "#,##0" ), "&#10003; 0" )
+VAR _txtNC = IF ( _cNaoN > 0, FORMAT ( _cNaoN, "#,##0" ), "&#10003; 0" )
+VAR _txtNP = IF ( _pNaoN > 0, FORMAT ( _pNaoN, "#,##0" ), "&#10003; 0" )
+VAR _txtNV = IF ( _vNaoN > 0, FORMAT ( _vNaoN, "#,##0" ), "&#10003; 0" )
+
+-- =========================================================
+-- Estilos (aspas simples para não precisar escapar no DAX)
+-- =========================================================
+VAR _sWrap  = "display:flex;gap:12px;align-items:stretch;font-family:Segoe UI,Arial,sans-serif;background:transparent;margin:0;padding:0"
+VAR _sCard  = "flex:1;min-width:0;background:#FFFFFF;border:1px solid #E7E5DD;border-radius:12px;padding:16px;box-sizing:border-box"
+VAR _sIcon  = "width:40px;height:40px;border-radius:9px;background:#F1F4F2;display:flex;align-items:center;justify-content:center;flex:none"
+VAR _sTit   = "font-size:15px;font-weight:700;color:#284D38;letter-spacing:.4px;line-height:1.2"
+VAR _sSub   = "font-size:12px;color:#9A9892;margin-top:2px"
+VAR _sKpiLb = "font-size:12px;font-weight:700;color:#3D3D3A;letter-spacing:.5px;margin-top:16px"
+VAR _sKpiVl = "font-size:40px;font-weight:600;color:#131313;line-height:1.1;margin-top:3px"
+VAR _sHint  = "font-size:10.5px;color:#A5A39C;margin:10px 0 7px"
+VAR _sGrid  = "display:grid;grid-template-columns:1fr 1fr;gap:7px"
+VAR _sCellL = "font-size:10.5px;font-weight:700;color:#6B6A65;letter-spacing:.4px"
+VAR _sCellV = "font-size:19px;font-weight:600;color:#131313;margin-top:2px"
+VAR _sCell  = "border:1px solid #EDEBE3;border-radius:8px;padding:6px 10px;min-width:0"
+
+-- =========================================================
+-- Ícones
+-- =========================================================
+VAR _svg0 = "<svg width='21' height='21' viewBox='0 0 24 24' fill='none' stroke='#284D38' stroke-width='1.7' stroke-linejoin='round'>"
+VAR _icGusa = _svg0 & "<rect x='3' y='11' width='4.5' height='9'/><rect x='9.8' y='6' width='4.5' height='14'/><rect x='16.5' y='14' width='4.5' height='6'/></svg>"
+VAR _icMin  = _svg0 & "<circle cx='12' cy='12' r='8.2'/><circle cx='12' cy='12' r='2.6' fill='#284D38'/></svg>"
+VAR _icCo   = _svg0 & "<path d='M2.5 4h3l2.6 11h9.4L19.5 7H7.4'/><circle cx='9' cy='19' r='1.5'/><circle cx='17' cy='19' r='1.5'/></svg>"
+VAR _icCarv = _svg0 & "<rect x='2.5' y='8' width='11' height='8' rx='1'/><path d='M13.5 11h4l3.5 3.2V16h-7.5z'/><circle cx='6.5' cy='18.3' r='1.5'/><circle cx='17' cy='18.3' r='1.5'/></svg>"
+VAR _icMP   = _svg0 & "<path d='M2.5 19.5l6.2-10.5 3.8 6 2.6-4.2 6.4 8.7z'/></svg>"
+
+-- =========================================================
+-- Montagem dos cartões
+-- =========================================================
+VAR _cardGusa =
+    "<div style='" & _sCard & "'>" &
+        "<div style='display:flex;align-items:center;gap:10px'>" &
+            "<div style='" & _sIcon & "'>" & _icGusa & "</div>" &
+            "<div style='min-width:0'><div style='" & _sTit & "'>FERRO GUSA</div>" &
+            "<div style='" & _sSub & "'>Expedi&#231;&#227;o &#183; toneladas</div></div>" &
+        "</div>" &
+        "<div style='" & _sKpiLb & "'>EXPEDIDO NO M&#202;S (t)</div>" &
+        "<div style='" & _sKpiVl & "'>" & FORMAT ( _gExp, "#,##0" ) & "</div>" &
+        "<div style='" & _sHint & "'>Realizado x meta do m&#234;s</div>" &
+        "<div style='" & _sGrid & "'>" &
+            "<div style='" & _sCell & "'><div style='" & _sCellL & "'>META (t)</div><div style='" & _sCellV & "'>" & FORMAT ( _gMeta, "#,##0" ) & "</div></div>" &
+            "<div style='" & _sCell & "'><div style='" & _sCellL & "'>% ATINGIMENTO</div><div style='" & _sCellV & "'>" & FORMAT ( _gAtin, "0.00%" ) & "</div></div>" &
+            "<div style='" & _sCell & "'><div style='" & _sCellL & "'>RITMO (TEND&#202;NCIA)</div><div style='" & _sCellV & "'>" & FORMAT ( _gTend, "#,##0" ) & "</div></div>" &
+            "<div class='" & _clsRG & "' style='" & _sCell & "'><div style='" & _sCellL & "'>% RITMO</div><div style='" & _sCellV & ";color:" & _corRG & "'>" & FORMAT ( _gRit, "0.00%" ) & "</div></div>" &
+            "<div style='" & _sCell & "'><div style='" & _sCellL & "'>PREVIS&#195;O CONCLUS&#195;O</div><div style='" & _sCellV & "'>" & FORMAT ( _gPrev, "dd/mm/yyyy" ) & "</div></div>" &
+            "<div style='" & _sCell & "'><div style='" & _sCellL & "'>M&#201;DIA DI&#193;RIA (t)</div><div style='" & _sCellV & "'>" & FORMAT ( _gMed, "#,##0" ) & "</div></div>" &
+            "<div style='" & _sCell & "'><div style='" & _sCellL & "'>M&#201;DIA NECESS&#193;RIA (t)</div><div style='" & _sCellV & "'>" & FORMAT ( _gNec, "#,##0" ) & "</div></div>" &
+            "<div class='" & _clsDG & "' style='" & _sCell & "'><div style='" & _sCellL & "'>DISPERS&#195;O (t)</div><div style='" & _sCellV & ";color:" & _corDG & "'>" & FORMAT ( _gDisp, "+#,##0;-#,##0;0" ) & "</div></div>" &
+            "<div style='" & _sCell & "'><div style='" & _sCellL & "'>INICIADOS</div><div style='" & _sCellV & "'>" & FORMAT ( _gPed, "#,##0" ) & "</div></div>" &
+            "<div class='" & _clsNG & "' style='" & _sCell & "'><div style='" & _sCellL & "'>N&#195;O INICIADOS</div><div style='" & _sCellV & ";color:" & _corNG & "'>" & _txtNG & "</div></div>" &
+            "<div style='" & _sCell & "'><div style='" & _sCellL & "'>CIF</div><div style='" & _sCellV & "'>" & FORMAT ( COALESCE ( _gCif, 0 ), "#,##0" ) & "</div></div>" &
+            "<div style='" & _sCell & "'><div style='" & _sCellL & "'>FOB</div><div style='" & _sCellV & "'>" & FORMAT ( COALESCE ( _gFob, 0 ), "#,##0" ) & "</div></div>" &
+        "</div>" &
+    "</div>"
+
+VAR _cardMin =
+    "<div style='" & _sCard & "'>" &
+        "<div style='display:flex;align-items:center;gap:10px'>" &
+            "<div style='" & _sIcon & "'>" & _icMin & "</div>" &
+            "<div style='min-width:0'><div style='" & _sTit & "'>MIN&#201;RIO DE FERRO</div>" &
+            "<div style='" & _sSub & "'>Expedi&#231;&#227;o &#183; toneladas</div></div>" &
+        "</div>" &
+        "<div style='" & _sKpiLb & "'>EXPEDIDO NO M&#202;S (t)</div>" &
+        "<div style='" & _sKpiVl & "'>" & FORMAT ( _mExp, "#,##0" ) & "</div>" &
+        "<div style='" & _sHint & "'>Realizado x meta do m&#234;s</div>" &
+        "<div style='" & _sGrid & "'>" &
+            "<div style='" & _sCell & "'><div style='" & _sCellL & "'>META (t)</div><div style='" & _sCellV & "'>" & FORMAT ( _mMeta, "#,##0" ) & "</div></div>" &
+            "<div style='" & _sCell & "'><div style='" & _sCellL & "'>% ATINGIMENTO</div><div style='" & _sCellV & "'>" & FORMAT ( _mAtin, "0.00%" ) & "</div></div>" &
+            "<div style='" & _sCell & "'><div style='" & _sCellL & "'>RITMO (TEND&#202;NCIA)</div><div style='" & _sCellV & "'>" & FORMAT ( _mTend, "#,##0" ) & "</div></div>" &
+            "<div class='" & _clsRM & "' style='" & _sCell & "'><div style='" & _sCellL & "'>% RITMO</div><div style='" & _sCellV & ";color:" & _corRM & "'>" & FORMAT ( _mRit, "0.00%" ) & "</div></div>" &
+            "<div style='" & _sCell & "'><div style='" & _sCellL & "'>PREVIS&#195;O CONCLUS&#195;O</div><div style='" & _sCellV & "'>" & FORMAT ( _mPrev, "dd/mm/yyyy" ) & "</div></div>" &
+            "<div style='" & _sCell & "'><div style='" & _sCellL & "'>M&#201;DIA DI&#193;RIA (t)</div><div style='" & _sCellV & "'>" & FORMAT ( _mMed, "#,##0" ) & "</div></div>" &
+            "<div style='" & _sCell & "'><div style='" & _sCellL & "'>M&#201;DIA NECESS&#193;RIA (t)</div><div style='" & _sCellV & "'>" & FORMAT ( _mNec, "#,##0" ) & "</div></div>" &
+            "<div class='" & _clsDM & "' style='" & _sCell & "'><div style='" & _sCellL & "'>DISPERS&#195;O (t)</div><div style='" & _sCellV & ";color:" & _corDM & "'>" & FORMAT ( _mDisp, "+#,##0;-#,##0;0" ) & "</div></div>" &
+            "<div style='" & _sCell & "'><div style='" & _sCellL & "'>INICIADOS</div><div style='" & _sCellV & "'>" & FORMAT ( _mPed, "#,##0" ) & "</div></div>" &
+            "<div class='" & _clsNM & "' style='" & _sCell & "'><div style='" & _sCellL & "'>N&#195;O INICIADOS</div><div style='" & _sCellV & ";color:" & _corNM & "'>" & _txtNM & "</div></div>" &
+            "<div style='" & _sCell & "'><div style='" & _sCellL & "'>CIF</div><div style='" & _sCellV & "'>" & FORMAT ( COALESCE ( _mCif, 0 ), "#,##0" ) & "</div></div>" &
+            "<div style='" & _sCell & "'><div style='" & _sCellL & "'>FOB</div><div style='" & _sCellV & "'>" & FORMAT ( COALESCE ( _mFob, 0 ), "#,##0" ) & "</div></div>" &
+        "</div>" &
+    "</div>"
+
+VAR _cardCo =
+    "<div style='" & _sCard & "'>" &
+        "<div style='display:flex;align-items:center;gap:10px'>" &
+            "<div style='" & _sIcon & "'>" & _icCo & "</div>" &
+            "<div style='min-width:0'><div style='" & _sTit & "'>CO PRODUTOS</div>" &
+            "<div style='" & _sSub & "'>Expedi&#231;&#227;o &#183; toneladas</div></div>" &
+        "</div>" &
+        "<div style='" & _sKpiLb & "'>EXPEDIDO NO M&#202;S (t)</div>" &
+        "<div style='" & _sKpiVl & "'>" & FORMAT ( _cExp, "#,##0" ) & "</div>" &
+        "<div style='" & _sHint & "'>Realizado x meta do m&#234;s</div>" &
+        "<div style='" & _sGrid & "'>" &
+            "<div style='" & _sCell & "'><div style='" & _sCellL & "'>META (t)</div><div style='" & _sCellV & "'>" & FORMAT ( _cMeta, "#,##0" ) & "</div></div>" &
+            "<div style='" & _sCell & "'><div style='" & _sCellL & "'>% ATINGIMENTO</div><div style='" & _sCellV & "'>" & FORMAT ( _cAtin, "0.00%" ) & "</div></div>" &
+            "<div style='" & _sCell & "'><div style='" & _sCellL & "'>RITMO (TEND&#202;NCIA)</div><div style='" & _sCellV & "'>" & FORMAT ( _cTend, "#,##0" ) & "</div></div>" &
+            "<div class='" & _clsRC & "' style='" & _sCell & "'><div style='" & _sCellL & "'>% RITMO</div><div style='" & _sCellV & ";color:" & _corRC & "'>" & FORMAT ( _cRit, "0.00%" ) & "</div></div>" &
+            "<div style='" & _sCell & "'><div style='" & _sCellL & "'>PREVIS&#195;O CONCLUS&#195;O</div><div style='" & _sCellV & "'>" & FORMAT ( _cPrev, "dd/mm/yyyy" ) & "</div></div>" &
+            "<div style='" & _sCell & "'><div style='" & _sCellL & "'>M&#201;DIA DI&#193;RIA (t)</div><div style='" & _sCellV & "'>" & FORMAT ( _cMed, "#,##0" ) & "</div></div>" &
+            "<div style='" & _sCell & "'><div style='" & _sCellL & "'>M&#201;DIA NECESS&#193;RIA (t)</div><div style='" & _sCellV & "'>" & FORMAT ( _cNec, "#,##0" ) & "</div></div>" &
+            "<div class='" & _clsDC & "' style='" & _sCell & "'><div style='" & _sCellL & "'>DISPERS&#195;O (t)</div><div style='" & _sCellV & ";color:" & _corDC & "'>" & FORMAT ( _cDisp, "+#,##0;-#,##0;0" ) & "</div></div>" &
+            "<div style='" & _sCell & "'><div style='" & _sCellL & "'>INICIADOS</div><div style='" & _sCellV & "'>" & FORMAT ( _cPed, "#,##0" ) & "</div></div>" &
+            "<div class='" & _clsNC & "' style='" & _sCell & "'><div style='" & _sCellL & "'>N&#195;O INICIADOS</div><div style='" & _sCellV & ";color:" & _corNC & "'>" & _txtNC & "</div></div>" &
+            "<div style='" & _sCell & "'><div style='" & _sCellL & "'>CIF</div><div style='" & _sCellV & "'>" & FORMAT ( COALESCE ( _cCif, 0 ), "#,##0" ) & "</div></div>" &
+            "<div style='" & _sCell & "'><div style='" & _sCellL & "'>FOB</div><div style='" & _sCellV & "'>" & FORMAT ( COALESCE ( _cFob, 0 ), "#,##0" ) & "</div></div>" &
+        "</div>" &
+    "</div>"
+
+VAR _cardCarv =
+    "<div style='" & _sCard & "'>" &
+        "<div style='display:flex;align-items:center;gap:10px'>" &
+            "<div style='" & _sIcon & "'>" & _icCarv & "</div>" &
+            "<div style='min-width:0'><div style='" & _sTit & "'>CARV&#195;O</div>" &
+            "<div style='" & _sSub & "'>Carregamento &#183; m&#179;</div></div>" &
+        "</div>" &
+        "<div style='" & _sKpiLb & "'>CARREGADO NO M&#202;S (m&#179;)</div>" &
+        "<div style='" & _sKpiVl & "'>" & FORMAT ( _vExp, "#,##0" ) & "</div>" &
+        "<div style='" & _sHint & "'>Realizado x meta da parti&#231;&#227;o</div>" &
+        "<div style='" & _sGrid & "'>" &
+            "<div style='" & _sCell & "'><div style='" & _sCellL & "'>META (m&#179;)</div><div style='" & _sCellV & "'>" & FORMAT ( _vMeta, "#,##0" ) & "</div></div>" &
+            "<div style='" & _sCell & "'><div style='" & _sCellL & "'>% ATINGIMENTO</div><div style='" & _sCellV & "'>" & FORMAT ( _vAtin, "0.00%" ) & "</div></div>" &
+            "<div style='" & _sCell & "'><div style='" & _sCellL & "'>RITMO (TEND&#202;NCIA)</div><div style='" & _sCellV & "'>" & FORMAT ( _vTend, "#,##0" ) & "</div></div>" &
+            "<div class='" & _clsRV & "' style='" & _sCell & "'><div style='" & _sCellL & "'>% RITMO</div><div style='" & _sCellV & ";color:" & _corRV & "'>" & FORMAT ( _vRit, "0.00%" ) & "</div></div>" &
+            "<div style='" & _sCell & "'><div style='" & _sCellL & "'>PREVIS&#195;O CONCLUS&#195;O</div><div style='" & _sCellV & "'>" & FORMAT ( _vPrev, "dd/mm/yyyy" ) & "</div></div>" &
+            "<div style='" & _sCell & "'><div style='" & _sCellL & "'>M&#201;DIA DI&#193;RIA (m&#179;)</div><div style='" & _sCellV & "'>" & FORMAT ( _vMed, "#,##0" ) & "</div></div>" &
+            "<div style='" & _sCell & "'><div style='" & _sCellL & "'>M&#201;DIA NECESS&#193;RIA (m&#179;)</div><div style='" & _sCellV & "'>" & FORMAT ( _vNec, "#,##0" ) & "</div></div>" &
+            "<div class='" & _clsDV & "' style='" & _sCell & "'><div style='" & _sCellL & "'>DISPERS&#195;O (m&#179;)</div><div style='" & _sCellV & ";color:" & _corDV & "'>" & FORMAT ( _vDisp, "+#,##0;-#,##0;0" ) & "</div></div>" &
+            "<div style='" & _sCell & "'><div style='" & _sCellL & "'>INICIADOS (UPC)</div><div style='" & _sCellV & "'>" & FORMAT ( COALESCE ( _vIni, 0 ), "#,##0" ) & "</div></div>" &
+            "<div class='" & _clsNV & "' style='" & _sCell & "'><div style='" & _sCellL & "'>N&#195;O INICIADOS (UPC)</div><div style='" & _sCellV & ";color:" & _corNV & "'>" & _txtNV & "</div></div>" &
+            "<div style='" & _sCell & "'><div style='" & _sCellL & "'>CARGAS CARREGADAS</div><div style='" & _sCellV & "'>" & FORMAT ( _vCgCarr, "#,##0" ) & "</div></div>" &
+            "<div style='" & _sCell & "'><div style='" & _sCellL & "'>CARGAS CANCELADAS</div><div style='" & _sCellV & "'>" & FORMAT ( _vCgCanc, "#,##0" ) & "</div></div>" &
+        "</div>" &
+    "</div>"
+
+VAR _cardMP =
+    "<div style='" & _sCard & "'>" &
+        "<div style='display:flex;align-items:center;gap:10px'>" &
+            "<div style='" & _sIcon & "'>" & _icMP & "</div>" &
+            "<div style='min-width:0'><div style='" & _sTit & "'>MAT&#201;RIA PRIMA</div>" &
+            "<div style='" & _sSub & "'>Recebimento &#183; toneladas</div></div>" &
+        "</div>" &
+        "<div style='" & _sKpiLb & "'>RECEBIDO NO M&#202;S (t)</div>" &
+        "<div style='" & _sKpiVl & "'>" & FORMAT ( _pRec, "#,##0" ) & "</div>" &
+        "<div style='" & _sHint & "'>Realizado x meta do m&#234;s</div>" &
+        "<div style='" & _sGrid & "'>" &
+            "<div style='" & _sCell & "'><div style='" & _sCellL & "'>META (t)</div><div style='" & _sCellV & "'>" & FORMAT ( _pMeta, "#,##0" ) & "</div></div>" &
+            "<div style='" & _sCell & "'><div style='" & _sCellL & "'>% ALCANCE</div><div style='" & _sCellV & "'>" & FORMAT ( _pAlc, "0.00%" ) & "</div></div>" &
+            "<div style='" & _sCell & "'><div style='" & _sCellL & "'>RITMO (TEND&#202;NCIA)</div><div style='" & _sCellV & "'>" & FORMAT ( _pTend, "#,##0" ) & "</div></div>" &
+            "<div class='" & _clsRP & "' style='" & _sCell & "'><div style='" & _sCellL & "'>% RITMO</div><div style='" & _sCellV & ";color:" & _corRP & "'>" & FORMAT ( _pRit, "0.00%" ) & "</div></div>" &
+            "<div style='" & _sCell & "'><div style='" & _sCellL & "'>PREVIS&#195;O CONCLUS&#195;O</div><div style='" & _sCellV & "'>" & FORMAT ( _pPrev, "dd/mm/yyyy" ) & "</div></div>" &
+            "<div style='" & _sCell & "'><div style='" & _sCellL & "'>M&#201;DIA DI&#193;RIA (t)</div><div style='" & _sCellV & "'>" & FORMAT ( _pMed, "#,##0" ) & "</div></div>" &
+            "<div style='" & _sCell & "'><div style='" & _sCellL & "'>M&#201;DIA NECESS&#193;RIA (t)</div><div style='" & _sCellV & "'>" & FORMAT ( _pNec, "#,##0" ) & "</div></div>" &
+            "<div class='" & _clsDP & "' style='" & _sCell & "'><div style='" & _sCellL & "'>DISPERS&#195;O (t)</div><div style='" & _sCellV & ";color:" & _corDP & "'>" & FORMAT ( _pDisp, "+#,##0;-#,##0;0" ) & "</div></div>" &
+            "<div style='" & _sCell & "'><div style='" & _sCellL & "'>INICIADOS</div><div style='" & _sCellV & "'>" & FORMAT ( _pPed, "#,##0" ) & "</div></div>" &
+            "<div class='" & _clsNP & "' style='" & _sCell & "'><div style='" & _sCellL & "'>N&#195;O INICIADOS</div><div style='" & _sCellV & ";color:" & _corNP & "'>" & _txtNP & "</div></div>" &
+        "</div>" &
+    "</div>"
+RETURN
+    "<style>" &
+        "html,body{background:transparent!important;margin:0;padding:0}" &
+        "@keyframes kOk{0%,80%{border-color:#DCE8E1}50%{border-color:#1D7A52}}" &
+        "@keyframes kBad{0%,80%{border-color:#F2DCDC}50%{border-color:#C62E2E}}" &
+        ".cOk,.cBad,.sOk{border-width:1.5px}" &
+        ".cOk{animation:kOk 2s ease-in-out infinite}" &
+        ".cBad{animation:kBad 2s ease-in-out infinite}" &
+        ".sOk{border-color:#1D7A52!important}" &
+    "</style>" &
+    "<div style='" & _sWrap & "'>" &
+        _cardGusa & _cardMin & _cardCo & _cardCarv & _cardMP &
+    "</div>"
