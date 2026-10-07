@@ -329,15 +329,36 @@ COUNTROWS ( f_basePlan )
 Viagens Realizadas Carvão =
 CALCULATE ( COUNTROWS ( f_basePlan ), KEEPFILTERS ( f_basePlan[CARREGADO] = "OK" ) )
 
+// ---- Viagens Canceladas Carvão   (formato: #,0)
+Viagens Canceladas Carvão =
+-- carga programada e cancelada (CARREGADO = "NOK")
+CALCULATE ( COUNTROWS ( f_basePlan ), KEEPFILTERS ( f_basePlan[CARREGADO] = "NOK" ) )
+
+// ---- Canceladas Carvão (m³)   (formato: #,0)
+Canceladas Carvão (m³) =
+CALCULATE ( SUM ( f_basePlan[M³] ), KEEPFILTERS ( f_basePlan[CARREGADO] = "NOK" ) )
+
+// ---- % Canceladas Carvão   (formato: 0.00%)
+% Canceladas Carvão =
+DIVIDE ( [Viagens Canceladas Carvão], [Viagens Planejadas Carvão] )
+
 // ---- Furos Carvão   (formato: #,0)
 Furos Carvão =
--- carga programada que não carregou (CARREGADO = "NOK")
-CALCULATE ( COUNTROWS ( f_basePlan ), KEEPFILTERS ( f_basePlan[CARREGADO] = "NOK" ) )
+-- carga programada para um dia que já passou (até ontem) e que ficou sem status:
+-- não carregou (OK) nem foi cancelada (NOK)
+CALCULATE (
+    COUNTROWS ( f_basePlan ),
+    KEEPFILTERS ( ISBLANK ( f_basePlan[CARREGADO] ) || NOT ( f_basePlan[CARREGADO] IN { "OK", "NOK" } ) ),
+    KEEPFILTERS ( f_basePlan[DATA] < TODAY () )
+)
 
 // ---- Viagens a Realizar Carvão   (formato: #,0)
 Viagens a Realizar Carvão =
--- programadas ainda sem status (nem OK nem NOK)
-[Viagens Planejadas Carvão] - COALESCE ( [Viagens Realizadas Carvão], 0 ) - COALESCE ( [Furos Carvão], 0 )
+-- programadas para hoje em diante, ainda sem status
+[Viagens Planejadas Carvão]
+    - COALESCE ( [Viagens Realizadas Carvão], 0 )
+    - COALESCE ( [Viagens Canceladas Carvão], 0 )
+    - COALESCE ( [Furos Carvão], 0 )
 
 // ---- % Furo Carvão   (formato: 0.00%)
 % Furo Carvão =

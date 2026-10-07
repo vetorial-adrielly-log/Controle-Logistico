@@ -583,16 +583,43 @@ createOrReplace
 			formatString: #,0
 			lineageTag: e3b60c0e-051c-4c0c-b2ec-8cda56032839
 
-		measure 'Furos Carvão' = ```
-				-- carga programada que não carregou (CARREGADO = "NOK")
+		measure 'Viagens Canceladas Carvão' = ```
+				-- carga programada e cancelada (CARREGADO = "NOK")
 				CALCULATE ( COUNTROWS ( f_basePlan ), KEEPFILTERS ( f_basePlan[CARREGADO] = "NOK" ) )
+				```
+			formatString: #,0
+			lineageTag: 2b92b907-4270-4064-921a-72ed17b7b99a
+
+		measure 'Canceladas Carvão (m³)' = ```
+				CALCULATE ( SUM ( f_basePlan[M³] ), KEEPFILTERS ( f_basePlan[CARREGADO] = "NOK" ) )
+				```
+			formatString: #,0
+			lineageTag: a4edd129-8989-4509-87ee-4ff05122ba7d
+
+		measure '% Canceladas Carvão' = ```
+				DIVIDE ( [Viagens Canceladas Carvão], [Viagens Planejadas Carvão] )
+				```
+			formatString: 0.00%
+			lineageTag: 44e7d853-e75e-432a-b0fe-865d87f08f38
+
+		measure 'Furos Carvão' = ```
+				-- carga programada para um dia que já passou (até ontem) e que ficou sem status:
+				-- não carregou (OK) nem foi cancelada (NOK)
+				CALCULATE (
+				    COUNTROWS ( f_basePlan ),
+				    KEEPFILTERS ( ISBLANK ( f_basePlan[CARREGADO] ) || NOT ( f_basePlan[CARREGADO] IN { "OK", "NOK" } ) ),
+				    KEEPFILTERS ( f_basePlan[DATA] < TODAY () )
+				)
 				```
 			formatString: #,0
 			lineageTag: 129bea58-5dff-44ac-a62e-9526e85d087b
 
 		measure 'Viagens a Realizar Carvão' = ```
-				-- programadas ainda sem status (nem OK nem NOK)
-				[Viagens Planejadas Carvão] - COALESCE ( [Viagens Realizadas Carvão], 0 ) - COALESCE ( [Furos Carvão], 0 )
+				-- programadas para hoje em diante, ainda sem status
+				[Viagens Planejadas Carvão]
+				    - COALESCE ( [Viagens Realizadas Carvão], 0 )
+				    - COALESCE ( [Viagens Canceladas Carvão], 0 )
+				    - COALESCE ( [Furos Carvão], 0 )
 				```
 			formatString: #,0
 			lineageTag: 945a2d36-9407-4b08-98cc-1dec1627b4c6
