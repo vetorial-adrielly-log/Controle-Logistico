@@ -44,7 +44,7 @@ let
     Subpastas = Table.SelectRows(Indic, each [Content] is table),
     Arqs     = Table.Combine(
                    List.Transform(
-                       if Table.IsEmpty(PastaPCP) then Subpastas[Content] else PastaPCP[Content],
+                       {Indic} & (if Table.IsEmpty(PastaPCP) then Subpastas[Content] else PastaPCP[Content]),
                        each Table.SelectRows(_, (r) => not (r[Content] is table)))),
     Planilhas = Table.Sort(
                    Table.SelectRows(Arqs, each [Extension] = ".xlsx"
