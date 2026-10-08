@@ -77,8 +77,9 @@ Power Automate em si precisa ser montado e testado no seu ambiente.
 
 ## 5. Comparativo PCP x realizado e furo compensado
 
-A tabela "Carregamento de carvão por UPC" ganhou 7 colunas. Todas consideram **só dias já
-fechados** (até ontem) que têm planejamento do PCP:
+A tabela "Carregamento de carvão por UPC" ganhou 7 colunas. As contas começam em **08/10/2026**
+(medida oculta `_Início PCP`; para mudar a data, altere só ela) e consideram **só dias já
+fechados** (até ontem):
 
 | Coluna | Medida | O que é |
 |---|---|---|

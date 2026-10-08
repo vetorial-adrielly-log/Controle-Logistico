@@ -757,31 +757,37 @@ createOrReplace
 			formatString: 0.00%
 			lineageTag: beff9ae0-c600-4b4c-9310-f99866d28e6b
 
+		measure '_Início PCP' = ```
+				-- data a partir da qual as contas do PCP valem (planejado, realizado, furo, compensado, acumulados)
+				DATE ( 2026, 10, 8 )
+				```
+			formatString: dd/mm/yyyy
+			isHidden
+			lineageTag: ef7cfa9a-7c45-4745-b189-80f1b875cbd1
+
 		measure 'Planejado PCP (m³)' = ```
-				SUM ( f_PlanPCPCarvao[Planejado m³] )
+				VAR _ini = [_Início PCP]
+				RETURN
+				    CALCULATE ( SUM ( f_PlanPCPCarvao[Planejado m³] ), KEEPFILTERS ( f_PlanPCPCarvao[Data] >= _ini ) )
 				```
 			formatString: #,0
 			lineageTag: 4ec48ccc-89d3-42c5-abff-7603a459d5db
 
 		measure 'Planejado PCP até Ontem (m³)' = ```
-				-- planejado do PCP só dos dias já fechados (base D-1), para comparar com o realizado
+				-- planejado do PCP dos dias já fechados (de _Início PCP até ontem), para comparar com o realizado
 				CALCULATE ( [Planejado PCP (m³)], KEEPFILTERS ( f_PlanPCPCarvao[Data] < TODAY () ) )
 				```
 			formatString: #,0
 			lineageTag: cab9f1b4-7edc-48a7-8e36-a1832ea23195
 
 		measure 'Carregado nos Dias do PCP (m³)' = ```
-				-- carregado nos dias fechados que têm planejamento do PCP (qualquer UPC/destino),
-				-- para que a UPC que carregou sem estar no planejamento do dia também conte
-				VAR _dias =
-				    CALCULATETABLE (
-				        VALUES ( f_PlanPCPCarvao[Data] ),
-				        REMOVEFILTERS ( d_UPC_Carvao ),
-				        REMOVEFILTERS ( d_Destino ),
-				        f_PlanPCPCarvao[Data] < TODAY ()
-				    )
+				-- carregado de _Início PCP até ontem (todos os dias do período, em qualquer UPC/destino)
+				VAR _ini = [_Início PCP]
 				RETURN
-				    CALCULATE ( [Carregado Carvão (m³)], KEEPFILTERS ( TREATAS ( _dias, d_Calendario[Date] ) ) )
+				    CALCULATE (
+				        [Carregado Carvão (m³)],
+				        KEEPFILTERS ( DATESBETWEEN ( d_Calendario[Date], _ini, TODAY () - 1 ) )
+				    )
 				```
 			formatString: #,0
 			lineageTag: 7bfe0f64-e8c8-479f-aa74-f29ac4a3d8aa
@@ -801,19 +807,12 @@ createOrReplace
 
 		measure 'Furo PCP (m³)' = ```
 				-- m³ planejados pelo PCP que não foram carregados no dia (planejado > realizado),
-				-- somando dia a dia por UPC e destino
+				-- somando dia a dia por UPC e destino, de _Início PCP até ontem
+				VAR _ini = [_Início PCP]
 				VAR _dias =
 				    CALCULATETABLE (
 				        VALUES ( d_Calendario[Date] ),
-				        TREATAS (
-				            CALCULATETABLE (
-				                VALUES ( f_PlanPCPCarvao[Data] ),
-				                REMOVEFILTERS ( d_UPC_Carvao ),
-				                REMOVEFILTERS ( d_Destino ),
-				                f_PlanPCPCarvao[Data] < TODAY ()
-				            ),
-				            d_Calendario[Date]
-				        )
+				        KEEPFILTERS ( DATESBETWEEN ( d_Calendario[Date], _ini, TODAY () - 1 ) )
 				    )
 				VAR _combos =
 				    CROSSJOIN ( _dias, VALUES ( d_UPC_Carvao[UPC Partição] ), VALUES ( d_Destino[DESTINO] ) )
@@ -831,18 +830,11 @@ createOrReplace
 		measure 'Furo Compensado PCP (m³)' = ```
 				-- m³ carregados acima do planejado do dia (realizado > planejado), por UPC e destino:
 				-- é o "furo compensado"
+				VAR _ini = [_Início PCP]
 				VAR _dias =
 				    CALCULATETABLE (
 				        VALUES ( d_Calendario[Date] ),
-				        TREATAS (
-				            CALCULATETABLE (
-				                VALUES ( f_PlanPCPCarvao[Data] ),
-				                REMOVEFILTERS ( d_UPC_Carvao ),
-				                REMOVEFILTERS ( d_Destino ),
-				                f_PlanPCPCarvao[Data] < TODAY ()
-				            ),
-				            d_Calendario[Date]
-				        )
+				        KEEPFILTERS ( DATESBETWEEN ( d_Calendario[Date], _ini, TODAY () - 1 ) )
 				    )
 				VAR _combos =
 				    CROSSJOIN ( _dias, VALUES ( d_UPC_Carvao[UPC Partição] ), VALUES ( d_Destino[DESTINO] ) )
@@ -871,41 +863,37 @@ createOrReplace
 			lineageTag: a6e52cfb-602c-40b1-bdda-809b5a72d170
 
 		measure 'Planejado PCP Acumulado (m³)' = ```
-				-- planejado do PCP acumulado do 1º dia do mês até a data do contexto
-				-- (tabela com filtro de mês: todos os e-mails recebidos no mês, inclusive o de amanhã;
-				--  gráfico por dia: soma corrida)
+				-- planejado do PCP acumulado de _Início PCP (ou do dia 1 do mês, o que vier depois)
+				-- até a data do contexto. Tabela com filtro de mês: todos os e-mails do mês, inclusive o
+				-- de amanhã; gráfico por dia: soma corrida
 				VAR _fim = MAX ( d_Calendario[Date] )
-				VAR _ini = DATE ( YEAR ( _fim ), MONTH ( _fim ), 1 )
+				VAR _ini = MAX ( DATE ( YEAR ( _fim ), MONTH ( _fim ), 1 ), [_Início PCP] )
 				RETURN
-				    CALCULATE (
-				        [Planejado PCP (m³)],
-				        REMOVEFILTERS ( d_Calendario ),
-				        DATESBETWEEN ( d_Calendario[Date], _ini, _fim )
+				    IF (
+				        _ini <= _fim,
+				        CALCULATE (
+				            [Planejado PCP (m³)],
+				            REMOVEFILTERS ( d_Calendario ),
+				            DATESBETWEEN ( d_Calendario[Date], _ini, _fim )
+				        )
 				    )
 				```
 			formatString: #,0
 			lineageTag: e9e3a59b-25ac-42da-988f-d1b47d98475c
 
 		measure 'Carregado Acumulado PCP (m³)' = ```
-				-- carregado acumulado no mesmo período do PCP: do 1º dia com planejamento do PCP no mês
-				-- até a data do contexto, sem passar de ontem (base D-1)
-				VAR _fim = MIN ( MAX ( d_Calendario[Date] ), TODAY () - 1 )
-				VAR _iniMes = DATE ( YEAR ( MAX ( d_Calendario[Date] ) ), MONTH ( MAX ( d_Calendario[Date] ) ), 1 )
-				VAR _iniPCP =
-				    CALCULATE (
-				        MIN ( f_PlanPCPCarvao[Data] ),
-				        REMOVEFILTERS ( d_Calendario ),
-				        REMOVEFILTERS ( d_UPC_Carvao ),
-				        REMOVEFILTERS ( d_Destino ),
-				        DATESBETWEEN ( d_Calendario[Date], _iniMes, EOMONTH ( _iniMes, 0 ) )
-				    )
+				-- carregado acumulado no mesmo período: de _Início PCP (ou do dia 1 do mês) até a data
+				-- do contexto, sem passar de ontem (base D-1)
+				VAR _max = MAX ( d_Calendario[Date] )
+				VAR _ini = MAX ( DATE ( YEAR ( _max ), MONTH ( _max ), 1 ), [_Início PCP] )
+				VAR _fim = MIN ( _max, TODAY () - 1 )
 				RETURN
 				    IF (
-				        NOT ISBLANK ( _iniPCP ) && _iniPCP <= _fim,
+				        _ini <= _fim,
 				        CALCULATE (
 				            [Carregado Carvão (m³)],
 				            REMOVEFILTERS ( d_Calendario ),
-				            DATESBETWEEN ( d_Calendario[Date], _iniPCP, _fim )
+				            DATESBETWEEN ( d_Calendario[Date], _ini, _fim )
 				        )
 				    )
 				```
