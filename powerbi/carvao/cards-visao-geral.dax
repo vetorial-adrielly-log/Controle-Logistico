@@ -1,6 +1,6 @@
 -- Cards Visão Geral (tabela 'Medidas - animações')
 -- Cole como fórmula da medida existente "Cards Visão Geral".
--- Mudanças: Carvão com meta da Gestão da Partição (mesmo formato dos demais),
+-- Mudanças: Carvão com meta da Gestão da Partição e PCP acumulado (plan., real., furo, compensado),
 -- "PEDIDOS" -> "INICIADOS", e células CIF / FOB nos cartões de Ferro Gusa, Minério e Co Produtos.
 
 -- =========================================================
@@ -73,16 +73,11 @@ VAR _vPrev = [Previsão Carvão]
 VAR _vMed  = [Média Diária Carvão]
 VAR _vNec  = [Média Necessária Carvão]
 VAR _vDisp = [Lacuna Carvão]
--- UPC x destino com meta no mês: iniciadas (já carregou) e não iniciadas
-VAR _vUpcs =
-    FILTER (
-        CROSSJOIN ( VALUES ( d_UPC_Carvao[UPC Partição] ), VALUES ( d_Destino[DESTINO] ) ),
-        [Meta Carvão (m³)] > 0
-    )
-VAR _vIni  = COUNTROWS ( FILTER ( _vUpcs, [Carregado Carvão (m³)] > 0 ) )
-VAR _vNao  = COUNTROWS ( FILTER ( _vUpcs, NOT ( [Carregado Carvão (m³)] > 0 ) ) )
-VAR _vCgCarr = [Carregado]
-VAR _vCgCanc = [Cancelado]
+-- PCP (e-mail do planejamento diário), acumulado de 08/10 até hoje
+VAR _vPcpPlan = [Planejado PCP Acumulado (m³)]
+VAR _vPcpReal = [Carregado Acumulado PCP (m³)]
+VAR _vFuro    = [Furo PCP (m³)]
+VAR _vComp    = [Furo Compensado PCP (m³)]
 
 -- =========================================================
 -- MATÉRIA PRIMA (f_MetaPC)
@@ -117,7 +112,6 @@ VAR _gNaoN = COALESCE ( _gNao, 0 )
 VAR _mNaoN = COALESCE ( _mNao, 0 )
 VAR _cNaoN = COALESCE ( _cNao, 0 )
 VAR _pNaoN = COALESCE ( _pNao, 0 )
-VAR _vNaoN = COALESCE ( _vNao, 0 )
 
 VAR _clsRG = IF ( _gRit >= 1, "cOk", "cBad" )
 VAR _clsRM = IF ( _mRit >= 1, "cOk", "cBad" )
@@ -140,22 +134,21 @@ VAR _corDM = IF ( _mDisp >= 0, "#1D7A52", "#C62E2E" )
 VAR _corDC = IF ( _cDisp >= 0, "#1D7A52", "#C62E2E" )
 VAR _corDP = IF ( _pDisp >= 0, "#1D7A52", "#C62E2E" )
 VAR _corDV = IF ( _vDisp >= 0, "#1D7A52", "#C62E2E" )
+VAR _corFV = IF ( COALESCE ( _vFuro, 0 ) > 0, "#C62E2E", "#131313" )
+VAR _corCV = IF ( COALESCE ( _vComp, 0 ) > 0, "#1D7A52", "#131313" )
 
 VAR _clsNG = IF ( _gNaoN > 0, "cBad", "sOk" )
 VAR _clsNM = IF ( _mNaoN > 0, "cBad", "sOk" )
 VAR _clsNC = IF ( _cNaoN > 0, "cBad", "sOk" )
 VAR _clsNP = IF ( _pNaoN > 0, "cBad", "sOk" )
-VAR _clsNV = IF ( _vNaoN > 0, "cBad", "sOk" )
 VAR _corNG = IF ( _gNaoN > 0, "#C62E2E", "#1D7A52" )
 VAR _corNM = IF ( _mNaoN > 0, "#C62E2E", "#1D7A52" )
 VAR _corNC = IF ( _cNaoN > 0, "#C62E2E", "#1D7A52" )
 VAR _corNP = IF ( _pNaoN > 0, "#C62E2E", "#1D7A52" )
-VAR _corNV = IF ( _vNaoN > 0, "#C62E2E", "#1D7A52" )
 VAR _txtNG = IF ( _gNaoN > 0, FORMAT ( _gNaoN, "#,##0" ), "&#10003; 0" )
 VAR _txtNM = IF ( _mNaoN > 0, FORMAT ( _mNaoN, "#,##0" ), "&#10003; 0" )
 VAR _txtNC = IF ( _cNaoN > 0, FORMAT ( _cNaoN, "#,##0" ), "&#10003; 0" )
 VAR _txtNP = IF ( _pNaoN > 0, FORMAT ( _pNaoN, "#,##0" ), "&#10003; 0" )
-VAR _txtNV = IF ( _vNaoN > 0, FORMAT ( _vNaoN, "#,##0" ), "&#10003; 0" )
 
 -- =========================================================
 -- Estilos (aspas simples para não precisar escapar no DAX)
@@ -198,7 +191,7 @@ VAR _cardGusa =
         "<div style='" & _sHint & "'>Realizado x meta do m&#234;s</div>" &
         "<div style='" & _sGrid & "'>" &
             "<div style='" & _sCell & "'><div style='" & _sCellL & "'>META (t)</div><div style='" & _sCellV & "'>" & FORMAT ( _gMeta, "#,##0" ) & "</div></div>" &
-            "<div style='" & _sCell & "'><div style='" & _sCellL & "'>% ATINGIMENTO</div><div style='" & _sCellV & "'>" & FORMAT ( _gAtin, "0.00%" ) & "</div></div>" &
+            "<div style='" & _sCell & "'><div style='" & _sCellL & "'>% ALCANCE</div><div style='" & _sCellV & "'>" & FORMAT ( _gAtin, "0.00%" ) & "</div></div>" &
             "<div style='" & _sCell & "'><div style='" & _sCellL & "'>RITMO (TEND&#202;NCIA)</div><div style='" & _sCellV & "'>" & FORMAT ( _gTend, "#,##0" ) & "</div></div>" &
             "<div class='" & _clsRG & "' style='" & _sCell & "'><div style='" & _sCellL & "'>% RITMO</div><div style='" & _sCellV & ";color:" & _corRG & "'>" & FORMAT ( _gRit, "0.00%" ) & "</div></div>" &
             "<div style='" & _sCell & "'><div style='" & _sCellL & "'>PREVIS&#195;O CONCLUS&#195;O</div><div style='" & _sCellV & "'>" & FORMAT ( _gPrev, "dd/mm/yyyy" ) & "</div></div>" &
@@ -224,7 +217,7 @@ VAR _cardMin =
         "<div style='" & _sHint & "'>Realizado x meta do m&#234;s</div>" &
         "<div style='" & _sGrid & "'>" &
             "<div style='" & _sCell & "'><div style='" & _sCellL & "'>META (t)</div><div style='" & _sCellV & "'>" & FORMAT ( _mMeta, "#,##0" ) & "</div></div>" &
-            "<div style='" & _sCell & "'><div style='" & _sCellL & "'>% ATINGIMENTO</div><div style='" & _sCellV & "'>" & FORMAT ( _mAtin, "0.00%" ) & "</div></div>" &
+            "<div style='" & _sCell & "'><div style='" & _sCellL & "'>% ALCANCE</div><div style='" & _sCellV & "'>" & FORMAT ( _mAtin, "0.00%" ) & "</div></div>" &
             "<div style='" & _sCell & "'><div style='" & _sCellL & "'>RITMO (TEND&#202;NCIA)</div><div style='" & _sCellV & "'>" & FORMAT ( _mTend, "#,##0" ) & "</div></div>" &
             "<div class='" & _clsRM & "' style='" & _sCell & "'><div style='" & _sCellL & "'>% RITMO</div><div style='" & _sCellV & ";color:" & _corRM & "'>" & FORMAT ( _mRit, "0.00%" ) & "</div></div>" &
             "<div style='" & _sCell & "'><div style='" & _sCellL & "'>PREVIS&#195;O CONCLUS&#195;O</div><div style='" & _sCellV & "'>" & FORMAT ( _mPrev, "dd/mm/yyyy" ) & "</div></div>" &
@@ -250,7 +243,7 @@ VAR _cardCo =
         "<div style='" & _sHint & "'>Realizado x meta do m&#234;s</div>" &
         "<div style='" & _sGrid & "'>" &
             "<div style='" & _sCell & "'><div style='" & _sCellL & "'>META (t)</div><div style='" & _sCellV & "'>" & FORMAT ( _cMeta, "#,##0" ) & "</div></div>" &
-            "<div style='" & _sCell & "'><div style='" & _sCellL & "'>% ATINGIMENTO</div><div style='" & _sCellV & "'>" & FORMAT ( _cAtin, "0.00%" ) & "</div></div>" &
+            "<div style='" & _sCell & "'><div style='" & _sCellL & "'>% ALCANCE</div><div style='" & _sCellV & "'>" & FORMAT ( _cAtin, "0.00%" ) & "</div></div>" &
             "<div style='" & _sCell & "'><div style='" & _sCellL & "'>RITMO (TEND&#202;NCIA)</div><div style='" & _sCellV & "'>" & FORMAT ( _cTend, "#,##0" ) & "</div></div>" &
             "<div class='" & _clsRC & "' style='" & _sCell & "'><div style='" & _sCellL & "'>% RITMO</div><div style='" & _sCellV & ";color:" & _corRC & "'>" & FORMAT ( _cRit, "0.00%" ) & "</div></div>" &
             "<div style='" & _sCell & "'><div style='" & _sCellL & "'>PREVIS&#195;O CONCLUS&#195;O</div><div style='" & _sCellV & "'>" & FORMAT ( _cPrev, "dd/mm/yyyy" ) & "</div></div>" &
@@ -276,17 +269,17 @@ VAR _cardCarv =
         "<div style='" & _sHint & "'>Realizado x meta da parti&#231;&#227;o</div>" &
         "<div style='" & _sGrid & "'>" &
             "<div style='" & _sCell & "'><div style='" & _sCellL & "'>META (m&#179;)</div><div style='" & _sCellV & "'>" & FORMAT ( _vMeta, "#,##0" ) & "</div></div>" &
-            "<div style='" & _sCell & "'><div style='" & _sCellL & "'>% ATINGIMENTO</div><div style='" & _sCellV & "'>" & FORMAT ( _vAtin, "0.00%" ) & "</div></div>" &
+            "<div style='" & _sCell & "'><div style='" & _sCellL & "'>% ALCANCE</div><div style='" & _sCellV & "'>" & FORMAT ( _vAtin, "0.00%" ) & "</div></div>" &
             "<div style='" & _sCell & "'><div style='" & _sCellL & "'>RITMO (TEND&#202;NCIA)</div><div style='" & _sCellV & "'>" & FORMAT ( _vTend, "#,##0" ) & "</div></div>" &
             "<div class='" & _clsRV & "' style='" & _sCell & "'><div style='" & _sCellL & "'>% RITMO</div><div style='" & _sCellV & ";color:" & _corRV & "'>" & FORMAT ( _vRit, "0.00%" ) & "</div></div>" &
             "<div style='" & _sCell & "'><div style='" & _sCellL & "'>PREVIS&#195;O CONCLUS&#195;O</div><div style='" & _sCellV & "'>" & FORMAT ( _vPrev, "dd/mm/yyyy" ) & "</div></div>" &
             "<div style='" & _sCell & "'><div style='" & _sCellL & "'>M&#201;DIA DI&#193;RIA (m&#179;)</div><div style='" & _sCellV & "'>" & FORMAT ( _vMed, "#,##0" ) & "</div></div>" &
             "<div style='" & _sCell & "'><div style='" & _sCellL & "'>M&#201;DIA NECESS&#193;RIA (m&#179;)</div><div style='" & _sCellV & "'>" & FORMAT ( _vNec, "#,##0" ) & "</div></div>" &
             "<div class='" & _clsDV & "' style='" & _sCell & "'><div style='" & _sCellL & "'>DISPERS&#195;O (m&#179;)</div><div style='" & _sCellV & ";color:" & _corDV & "'>" & FORMAT ( _vDisp, "+#,##0;-#,##0;0" ) & "</div></div>" &
-            "<div style='" & _sCell & "'><div style='" & _sCellL & "'>INICIADOS (UPC)</div><div style='" & _sCellV & "'>" & FORMAT ( COALESCE ( _vIni, 0 ), "#,##0" ) & "</div></div>" &
-            "<div class='" & _clsNV & "' style='" & _sCell & "'><div style='" & _sCellL & "'>N&#195;O INICIADOS (UPC)</div><div style='" & _sCellV & ";color:" & _corNV & "'>" & _txtNV & "</div></div>" &
-            "<div style='" & _sCell & "'><div style='" & _sCellL & "'>CARGAS CARREGADAS</div><div style='" & _sCellV & "'>" & FORMAT ( _vCgCarr, "#,##0" ) & "</div></div>" &
-            "<div style='" & _sCell & "'><div style='" & _sCellL & "'>CARGAS CANCELADAS</div><div style='" & _sCellV & "'>" & FORMAT ( _vCgCanc, "#,##0" ) & "</div></div>" &
+            "<div style='" & _sCell & "'><div style='" & _sCellL & "'>PLAN. PCP ACUM. (m&#179;)</div><div style='" & _sCellV & "'>" & FORMAT ( COALESCE ( _vPcpPlan, 0 ), "#,##0" ) & "</div></div>" &
+            "<div style='" & _sCell & "'><div style='" & _sCellL & "'>REAL. PCP ACUM. (m&#179;)</div><div style='" & _sCellV & "'>" & FORMAT ( COALESCE ( _vPcpReal, 0 ), "#,##0" ) & "</div></div>" &
+            "<div style='" & _sCell & "'><div style='" & _sCellL & "'>FURO PCP (m&#179;)</div><div style='" & _sCellV & ";color:" & _corFV & "'>" & FORMAT ( COALESCE ( _vFuro, 0 ), "#,##0" ) & "</div></div>" &
+            "<div style='" & _sCell & "'><div style='" & _sCellL & "'>COMPENSADO (m&#179;)</div><div style='" & _sCellV & ";color:" & _corCV & "'>" & FORMAT ( COALESCE ( _vComp, 0 ), "#,##0" ) & "</div></div>" &
         "</div>" &
     "</div>"
 
