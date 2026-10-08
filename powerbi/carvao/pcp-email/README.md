@@ -74,3 +74,24 @@ O leitor da tabela foi testado no e-mail real ("RE: Planejamento de Expedição 
 Ele extraiu as 6 linhas acima, com totais iguais aos do e-mail (945 / 1.010). A substituição de um
 dia já gravado também foi testada, inclusive com a data salva como número pelo Excel. O fluxo do
 Power Automate em si precisa ser montado e testado no seu ambiente.
+
+## 5. Comparativo PCP x realizado e furo compensado
+
+A tabela "Carregamento de carvão por UPC" ganhou 7 colunas. Todas consideram **só dias já
+fechados** (até ontem) que têm planejamento do PCP:
+
+| Coluna | Medida | O que é |
+|---|---|---|
+| Plan. PCP (m³) | Planejado PCP até Ontem (m³) | planejado nos e-mails |
+| Real. PCP (m³) | Carregado nos Dias do PCP (m³) | carregado (OK) nesses dias, inclusive em UPC que não estava no planejamento do dia |
+| Desvio PCP (m³) | Desvio PCP (m³) | realizado − planejado |
+| % Ader. PCP | % Aderência ao PCP | realizado ÷ planejado |
+| Furo (m³) | Furo PCP (m³) | por dia, UPC e destino: o planejado que **não** foi carregado (planejado > realizado) |
+| Compensado (m³) | Furo Compensado PCP (m³) | por dia, UPC e destino: o que foi carregado **acima** do planejado (realizado > planejado) |
+| Saldo (m³) | Saldo Furo x Compensado (m³) | compensado − furo (positivo: compensou mais do que furou) |
+
+Há também a medida **% Furo Compensado** (compensado ÷ furo), que não está na tabela.
+
+Exemplo: Lageado/CMG com 770 m³ planejados no dia e 650 carregados gera 120 m³ de **furo**.
+Lobo/RRP com 120 planejados e 235 carregados gera 115 m³ **compensados**. O saldo dos dois é −5.
+Desvio PCP = Compensado − Furo, sempre.

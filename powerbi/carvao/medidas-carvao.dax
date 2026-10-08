@@ -374,18 +374,93 @@ DIVIDE ( [Furos Carvão], [Viagens Planejadas Carvão] )
 Planejado PCP (m³) =
 SUM ( f_PlanPCPCarvao[Planejado m³] )
 
+// ---- Planejado PCP até Ontem (m³)   (formato: #,0)
+Planejado PCP até Ontem (m³) =
+-- planejado do PCP só dos dias já fechados (base D-1), para comparar com o realizado
+CALCULATE ( [Planejado PCP (m³)], KEEPFILTERS ( f_PlanPCPCarvao[Data] < TODAY () ) )
+
 // ---- Carregado nos Dias do PCP (m³)   (formato: #,0)
 Carregado nos Dias do PCP (m³) =
--- carregado só nos dias que têm planejamento do PCP (comparação justa com o planejado)
-CALCULATE (
-    [Carregado Carvão (m³)],
-    KEEPFILTERS ( TREATAS ( VALUES ( f_PlanPCPCarvao[Data] ), d_Calendario[Date] ) )
-)
-
-// ---- % Aderência ao PCP   (formato: 0.00%)
-% Aderência ao PCP =
-DIVIDE ( [Carregado nos Dias do PCP (m³)], [Planejado PCP (m³)] )
+-- carregado nos dias fechados que têm planejamento do PCP (qualquer UPC/destino),
+-- para que a UPC que carregou sem estar no planejamento do dia também conte
+VAR _dias =
+    CALCULATETABLE (
+        VALUES ( f_PlanPCPCarvao[Data] ),
+        REMOVEFILTERS ( d_UPC_Carvao ),
+        REMOVEFILTERS ( d_Destino ),
+        f_PlanPCPCarvao[Data] < TODAY ()
+    )
+RETURN
+    CALCULATE ( [Carregado Carvão (m³)], KEEPFILTERS ( TREATAS ( _dias, d_Calendario[Date] ) ) )
 
 // ---- Desvio PCP (m³)   (formato: #,0)
 Desvio PCP (m³) =
-[Carregado nos Dias do PCP (m³)] - [Planejado PCP (m³)]
+-- realizado - planejado PCP (dias fechados) = compensado - furo
+[Carregado nos Dias do PCP (m³)] - [Planejado PCP até Ontem (m³)]
+
+// ---- % Aderência ao PCP   (formato: 0.00%)
+% Aderência ao PCP =
+DIVIDE ( [Carregado nos Dias do PCP (m³)], [Planejado PCP até Ontem (m³)] )
+
+// ---- Furo PCP (m³)   (formato: #,0)
+Furo PCP (m³) =
+-- m³ planejados pelo PCP que não foram carregados no dia (planejado > realizado),
+-- somando dia a dia por UPC e destino
+VAR _dias =
+    CALCULATETABLE (
+        VALUES ( d_Calendario[Date] ),
+        TREATAS (
+            CALCULATETABLE (
+                VALUES ( f_PlanPCPCarvao[Data] ),
+                REMOVEFILTERS ( d_UPC_Carvao ),
+                REMOVEFILTERS ( d_Destino ),
+                f_PlanPCPCarvao[Data] < TODAY ()
+            ),
+            d_Calendario[Date]
+        )
+    )
+VAR _combos =
+    CROSSJOIN ( _dias, VALUES ( d_UPC_Carvao[UPC Partição] ), VALUES ( d_Destino[DESTINO] ) )
+RETURN
+    SUMX (
+        _combos,
+        VAR _p = COALESCE ( [Planejado PCP (m³)], 0 )
+        VAR _r = COALESCE ( [Carregado Carvão (m³)], 0 )
+        RETURN MAX ( _p - _r, 0 )
+    )
+
+// ---- Furo Compensado PCP (m³)   (formato: #,0)
+Furo Compensado PCP (m³) =
+-- m³ carregados acima do planejado do dia (realizado > planejado), por UPC e destino:
+-- é o "furo compensado"
+VAR _dias =
+    CALCULATETABLE (
+        VALUES ( d_Calendario[Date] ),
+        TREATAS (
+            CALCULATETABLE (
+                VALUES ( f_PlanPCPCarvao[Data] ),
+                REMOVEFILTERS ( d_UPC_Carvao ),
+                REMOVEFILTERS ( d_Destino ),
+                f_PlanPCPCarvao[Data] < TODAY ()
+            ),
+            d_Calendario[Date]
+        )
+    )
+VAR _combos =
+    CROSSJOIN ( _dias, VALUES ( d_UPC_Carvao[UPC Partição] ), VALUES ( d_Destino[DESTINO] ) )
+RETURN
+    SUMX (
+        _combos,
+        VAR _p = COALESCE ( [Planejado PCP (m³)], 0 )
+        VAR _r = COALESCE ( [Carregado Carvão (m³)], 0 )
+        RETURN MAX ( _r - _p, 0 )
+    )
+
+// ---- Saldo Furo x Compensado (m³)   (formato: +#,0;-#,0;0)
+Saldo Furo x Compensado (m³) =
+-- positivo: compensou mais do que furou · negativo: ainda falta compensar
+[Furo Compensado PCP (m³)] - [Furo PCP (m³)]
+
+// ---- % Furo Compensado   (formato: 0.00%)
+% Furo Compensado =
+DIVIDE ( [Furo Compensado PCP (m³)], [Furo PCP (m³)] )
