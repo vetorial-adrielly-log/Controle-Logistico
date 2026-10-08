@@ -259,18 +259,20 @@ createOrReplace
 					               ),
 					    PastaPCP = Table.SelectRows(Indic, each [Content] is table
 					                                           and Text.Contains(Normal([Name]), "planejamento pcp")),
-					    Arqs     = if Table.IsEmpty(PastaPCP) then
-					                   error "Pasta ""Planejamento PCP"" não encontrada em Indicadores. Pastas existentes: "
-					                         & Text.Combine(Table.SelectRows(Indic, each [Content] is table)[Name], " | ")
-					               else Table.Combine(PastaPCP[Content]),
+					    // se a pasta "Planejamento PCP" não aparecer, procura o arquivo em todas as subpastas de Indicadores
+					    Subpastas = Table.SelectRows(Indic, each [Content] is table),
+					    Arqs     = Table.Combine(
+					                   List.Transform(
+					                       if Table.IsEmpty(PastaPCP) then Subpastas[Content] else PastaPCP[Content],
+					                       each Table.SelectRows(_, (r) => not (r[Content] is table)))),
 					    Planilhas = Table.Sort(
 					                   Table.SelectRows(Arqs, each [Extension] = ".xlsx"
 					                                          and not Text.StartsWith([Name], "~$")
 					                                          and Text.StartsWith(Normal([Name]), "planejamento pcp carv")),
 					                   {{"Date modified", Order.Descending}}),
 					    Arquivo  = if Table.IsEmpty(Planilhas) then
-					                   error "Arquivo ""Planejamento PCP Carvao.xlsx"" não encontrado. Arquivos na pasta: "
-					                         & Text.Combine(Arqs[Name], " | ")
+					                   error "Arquivo ""Planejamento PCP Carvao.xlsx"" não encontrado em Indicadores nem nas subpastas. "
+					                         & "Subpastas: " & Text.Combine(Subpastas[Name], " | ")
 					               else Planilhas{0}[Content],
 					    Pasta    = Excel.Workbook(Arquivo, null, true),
 					    Tabela   = Pasta{[Item = "tbPlanPCP", Kind = "Table"]}[Data],
