@@ -1,6 +1,6 @@
 -- Cards Visão Geral (tabela 'Medidas - animações')
 -- Cole como fórmula da medida existente "Cards Visão Geral".
--- Mudanças: Carvão com meta da Gestão da Partição e PCP acumulado (plan., real., furo, compensado),
+-- Mudanças: Carvão com meta da Gestão da Partição e PCP acumulado (plan., furo, compensado, % compensado),
 -- "PEDIDOS" -> "INICIADOS", e células CIF / FOB nos cartões de Ferro Gusa, Minério e Co Produtos.
 
 -- =========================================================
@@ -75,9 +75,9 @@ VAR _vNec  = [Média Necessária Carvão]
 VAR _vDisp = [Lacuna Carvão]
 -- PCP (e-mail do planejamento diário), acumulado de 08/10 até hoje
 VAR _vPcpPlan = [Planejado PCP Acumulado (m³)]
-VAR _vPcpReal = [Carregado Acumulado PCP (m³)]
 VAR _vFuro    = [Furo PCP (m³)]
 VAR _vComp    = [Furo Compensado PCP (m³)]
+VAR _vPComp   = [% Furo Compensado]
 
 -- =========================================================
 -- MATÉRIA PRIMA (f_MetaPC)
@@ -277,9 +277,9 @@ VAR _cardCarv =
             "<div style='" & _sCell & "'><div style='" & _sCellL & "'>M&#201;DIA NECESS&#193;RIA (m&#179;)</div><div style='" & _sCellV & "'>" & FORMAT ( _vNec, "#,##0" ) & "</div></div>" &
             "<div class='" & _clsDV & "' style='" & _sCell & "'><div style='" & _sCellL & "'>DISPERS&#195;O (m&#179;)</div><div style='" & _sCellV & ";color:" & _corDV & "'>" & FORMAT ( _vDisp, "+#,##0;-#,##0;0" ) & "</div></div>" &
             "<div style='" & _sCell & "'><div style='" & _sCellL & "'>PLAN. PCP ACUM. (m&#179;)</div><div style='" & _sCellV & "'>" & FORMAT ( COALESCE ( _vPcpPlan, 0 ), "#,##0" ) & "</div></div>" &
-            "<div style='" & _sCell & "'><div style='" & _sCellL & "'>REAL. PCP ACUM. (m&#179;)</div><div style='" & _sCellV & "'>" & FORMAT ( COALESCE ( _vPcpReal, 0 ), "#,##0" ) & "</div></div>" &
             "<div style='" & _sCell & "'><div style='" & _sCellL & "'>FURO PCP (m&#179;)</div><div style='" & _sCellV & ";color:" & _corFV & "'>" & FORMAT ( COALESCE ( _vFuro, 0 ), "#,##0" ) & "</div></div>" &
             "<div style='" & _sCell & "'><div style='" & _sCellL & "'>COMPENSADO (m&#179;)</div><div style='" & _sCellV & ";color:" & _corCV & "'>" & FORMAT ( COALESCE ( _vComp, 0 ), "#,##0" ) & "</div></div>" &
+            "<div style='" & _sCell & "'><div style='" & _sCellL & "'>% M&#179; COMPENSADO</div><div style='" & _sCellV & ";color:" & _corCV & "'>" & FORMAT ( COALESCE ( _vPComp, 0 ), "0.00%" ) & "</div></div>" &
         "</div>" &
     "</div>"
 
