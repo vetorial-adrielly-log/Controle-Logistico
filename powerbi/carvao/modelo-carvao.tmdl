@@ -870,6 +870,48 @@ createOrReplace
 			formatString: 0.00%
 			lineageTag: a6e52cfb-602c-40b1-bdda-809b5a72d170
 
+		measure 'Planejado PCP Acumulado (m³)' = ```
+				-- planejado do PCP acumulado do 1º dia do mês até a data do contexto
+				-- (tabela com filtro de mês: todos os e-mails recebidos no mês, inclusive o de amanhã;
+				--  gráfico por dia: soma corrida)
+				VAR _fim = MAX ( d_Calendario[Date] )
+				VAR _ini = DATE ( YEAR ( _fim ), MONTH ( _fim ), 1 )
+				RETURN
+				    CALCULATE (
+				        [Planejado PCP (m³)],
+				        REMOVEFILTERS ( d_Calendario ),
+				        DATESBETWEEN ( d_Calendario[Date], _ini, _fim )
+				    )
+				```
+			formatString: #,0
+			lineageTag: e9e3a59b-25ac-42da-988f-d1b47d98475c
+
+		measure 'Carregado Acumulado PCP (m³)' = ```
+				-- carregado acumulado no mesmo período do PCP: do 1º dia com planejamento do PCP no mês
+				-- até a data do contexto, sem passar de ontem (base D-1)
+				VAR _fim = MIN ( MAX ( d_Calendario[Date] ), TODAY () - 1 )
+				VAR _iniMes = DATE ( YEAR ( MAX ( d_Calendario[Date] ) ), MONTH ( MAX ( d_Calendario[Date] ) ), 1 )
+				VAR _iniPCP =
+				    CALCULATE (
+				        MIN ( f_PlanPCPCarvao[Data] ),
+				        REMOVEFILTERS ( d_Calendario ),
+				        REMOVEFILTERS ( d_UPC_Carvao ),
+				        REMOVEFILTERS ( d_Destino ),
+				        DATESBETWEEN ( d_Calendario[Date], _iniMes, EOMONTH ( _iniMes, 0 ) )
+				    )
+				RETURN
+				    IF (
+				        NOT ISBLANK ( _iniPCP ) && _iniPCP <= _fim,
+				        CALCULATE (
+				            [Carregado Carvão (m³)],
+				            REMOVEFILTERS ( d_Calendario ),
+				            DATESBETWEEN ( d_Calendario[Date], _iniPCP, _fim )
+				        )
+				    )
+				```
+			formatString: #,0
+			lineageTag: 6638ea45-c9d2-4275-87b8-561eb720e955
+
 		column Coluna
 			dataType: string
 			isHidden
