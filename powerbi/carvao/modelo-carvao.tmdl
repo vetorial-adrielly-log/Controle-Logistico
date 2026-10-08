@@ -144,6 +144,7 @@ createOrReplace
 					// d_UPC_Map — liga a UPC da base de puxada (f_basePlan) à UPC da planilha de partição.
 					// A busca é por palavra-chave, na ordem da lista (OURO VERDE antes de LAJEADO, etc.).
 					// UPC sem correspondência fica como "SEM META DE PARTIÇÃO": o carregado dela continua no total.
+					// GERDAU/UPC 104 não tem meta na partição, mas aparece com o próprio nome ("UPC GERDAU").
 					// Para ligar uma UPC nova, acrescente {"PALAVRA DA BASE", "NOME NA PARTIÇÃO"} na lista.
 					let
 					    Mapa    = {
@@ -164,7 +165,8 @@ createOrReplace
 					                  {"MANGABA",         "UPC MANGABA"},
 					                  {"AGROBUSINESS",    "UPC AGROBUSINESS"},
 					                  {"DOURAFORTE",      "UPC DOURAFORTE"},
-					                  {"FGMG",            "UPC FGMG"}
+					                  {"FGMG",            "UPC FGMG"},
+					                  {"GERDAU",          "UPC GERDAU"}
 					              },
 					    Fonte   = Table.Distinct(Table.SelectColumns(Table.SelectRows(f_basePlan, each [UPC] <> null), {"UPC"})),
 					    ComPart = Table.AddColumn(Fonte, "UPC Partição", each
@@ -176,6 +178,99 @@ createOrReplace
 					                  type text)
 					in
 					    ComPart
+
+	table 'f_PlanPCPCarvao'
+		lineageTag: 1fa44bad-e9c9-43ab-8827-6d87d317fbd7
+
+		column 'Data'
+			dataType: dateTime
+			formatString: dd/mm/yyyy
+			lineageTag: 3fbc9304-d325-4efa-95e5-ef8f3e653333
+			summarizeBy: none
+			sourceColumn: Data
+
+		column 'UPC (e-mail)'
+			dataType: string
+			lineageTag: f8e84fa6-70ef-4efa-99b5-8a71633a3859
+			summarizeBy: none
+			sourceColumn: UPC (e-mail)
+
+		column 'UPC Partição'
+			dataType: string
+			lineageTag: 0b15f91f-9718-406f-bac9-3ae7354a619b
+			summarizeBy: none
+			sourceColumn: UPC Partição
+
+		column 'DESTINO'
+			dataType: string
+			lineageTag: 50525e13-6bf9-41a3-9394-0cace4a66e32
+			summarizeBy: none
+			sourceColumn: DESTINO
+
+		column 'Planejado m³'
+			dataType: double
+			formatString: #,0
+			lineageTag: 3f47b681-6ef8-4154-a649-9faf269e1d6f
+			summarizeBy: none
+			sourceColumn: Planejado m³
+
+		partition 'f_PlanPCPCarvao' = m
+			mode: import
+			source =
+					// f_PlanPCPCarvao — planejamento diário de puxada de carvão enviado pelo PCP por e-mail.
+					// O Power Automate grava cada e-mail "Planejamento de Expedição de Carvão - dd/mm" na tabela
+					// tbPlanPCP do arquivo "Planejamento PCP Carvao.xlsx" (pasta Indicadores › Planejamento PCP).
+					// Uma linha por dia x UPC x destino (RRP/CMG), em m³.
+					let
+					    // mesma ligação de nomes usada em d_UPC_Map (o PCP usa nomes curtos: "Lageado", "Móvel"...)
+					    Mapa     = {
+					                   {"OURO VERDE",      "UPC OURO VERDE"},
+					                   {"MATA VERDE",      "UPC MATA VERDE"},
+					                   {"VERDE MAR",       "UPC VERDE MAR"},
+					                   {"LAJEADO",         "UPC LAGEADO"},
+					                   {"LAGEADO",         "UPC LAGEADO"},
+					                   {"NOVA DA MATA",    "UPC NOVA DA MATA"},
+					                   {"CABECEIRA FUNDA", "UPC CABECEIRA FUNDA"},
+					                   {"ÁGUA LIMPA",      "UPC ÁGUA LIMPA"},
+					                   {"AGUA LIMPA",      "UPC ÁGUA LIMPA"},
+					                   {"MÓVEL",           "UPC MÓVEL 1"},
+					                   {"MOVEL",           "UPC MÓVEL 1"},
+					                   {"BOM FUTURO",      "UPC BOM FUTURO"},
+					                   {"LOBO",            "UPC LOBO"},
+					                   {"SÃO JOÃO",        "UPC SÃO JOÃO"},
+					                   {"MANGABA",         "UPC MANGABA"},
+					                   {"AGROBUSINESS",    "UPC AGROBUSINESS"},
+					                   {"DOURAFORTE",      "UPC DOURAFORTE"},
+					                   {"FGMG",            "UPC FGMG"},
+					                   {"GERDAU",          "UPC GERDAU"}
+					               },
+					    Arquivo  = fnArquivoSP(
+					                   pSiteLog,
+					                   {"Shared Documents", "Campo Grande", "4. Carvão", "Programação de Expedição",
+					                    "Indicadores", "Planejamento PCP"},
+					                   "Planejamento PCP Carvao.xlsx"
+					               ),
+					    Pasta    = Excel.Workbook(Arquivo, null, true),
+					    Tabela   = Pasta{[Item = "tbPlanPCP", Kind = "Table"]}[Data],
+					    Datas    = Table.TransformColumns(Tabela, {{"Data", each
+					                   if _ is number then Date.From(_)                       // série do Excel
+					                   else if _ is date or _ is datetime then Date.From(_)
+					                   else Date.FromText(Text.Start(Text.From(_), 10), [Format = "yyyy-MM-dd"]), type date}}),
+					    Tipado   = Table.TransformColumnTypes(Datas, {{"UPC", type text}, {"Destino", type text}, {"Planejado m3", type number}}),
+					    Validas  = Table.SelectRows(Tipado, each [Data] <> null and [UPC] <> null and [#"Planejado m3"] <> null),
+					    ComPart  = Table.AddColumn(Validas, "UPC Partição", each
+					                   let
+					                       u   = Text.Upper([UPC]),
+					                       hit = List.First(List.Select(Mapa, (p) => Text.Contains(u, p{0})), null)
+					                   in
+					                       if hit <> null then hit{1}
+					                       else Text.Trim(Text.Upper(Text.BeforeDelimiter([UPC], "("))),   // TERCEIRO, IMPORTADO...
+					                   type text),
+					    Final    = Table.RenameColumns(
+					                   Table.SelectColumns(ComPart, {"Data", "UPC", "UPC Partição", "Destino", "Planejado m3"}),
+					                   {{"UPC", "UPC (e-mail)"}, {"Destino", "DESTINO"}, {"Planejado m3", "Planejado m³"}})
+					in
+					    Final
 
 	table 'd_UPC_Carvao'
 		lineageTag: 0a8ee5df-e382-4b44-bac7-055f69ce67f4
@@ -196,14 +291,16 @@ createOrReplace
 			mode: import
 			source =
 					// d_UPC_Carvao — uma linha por UPC da partição (com o Tipo mais recente: Própria/Contrato),
-					// mais as UPCs da base que não estão na partição.
+					// mais as UPCs da base de puxada e do planejamento do PCP que não estão na partição.
 					let
 					    DaMeta = Table.Buffer(Table.Sort(
 					                 Table.SelectColumns(f_MetaCarvao, {"UPC Partição", "Tipo", "Mês"}),
 					                 {{"Mês", Order.Descending}})),
 					    Unicas = Table.Distinct(Table.SelectColumns(DaMeta, {"UPC Partição", "Tipo"}), {"UPC Partição"}),
 					    DoMapa = Table.SelectRows(
-					                 Table.Distinct(Table.SelectColumns(d_UPC_Map, {"UPC Partição"})),
+					                 Table.Distinct(Table.Combine({
+					                     Table.SelectColumns(d_UPC_Map, {"UPC Partição"}),
+					                     Table.SelectColumns(f_PlanPCPCarvao, {"UPC Partição"})})),
 					                 each not List.Contains(Unicas[UPC Partição], [UPC Partição])),
 					    Extras = Table.AddColumn(DoMapa, "Tipo", each "Sem partição", type text),
 					    Final  = Table.TransformColumnTypes(Table.Combine({Unicas, Extras}),
@@ -221,8 +318,14 @@ createOrReplace
 				        SUMMARIZE ( d_Calendario, d_Calendario[Ano], d_Calendario[Mês Número] ),
 				        "@Mes", DATE ( d_Calendario[Ano], d_Calendario[Mês Número], 1 )
 				    )
-				RETURN
+				VAR _meta =
 				    CALCULATE ( SUM ( f_MetaCarvao[Meta m³] ), TREATAS ( _meses, f_MetaCarvao[Mês] ) )
+				-- sem meta na partição: 0 quando existe carga programada ou planejamento do PCP
+				-- (vazio só quando não há nada, para não criar linhas sem dados nas tabelas)
+				VAR _temDados =
+				    NOT ISEMPTY ( f_basePlan ) || NOT ISEMPTY ( f_PlanPCPCarvao )
+				RETURN
+				    IF ( ISBLANK ( _meta ), IF ( _temDados, 0 ), _meta )
 				```
 			formatString: #,0
 			lineageTag: 02cba813-36be-4e1d-880b-63bc9c7e4588
@@ -307,7 +410,8 @@ createOrReplace
 				RETURN
 				    SWITCH (
 				        TRUE (),
-				        ISBLANK ( _meta ) || _meta <= 0, BLANK (),
+				        ISBLANK ( _meta ), BLANK (),
+				        _meta <= 0, 0,
 				        ISBLANK ( _real ), 0,
 				        _real >= _meta, _meta,
 				        _rest <= 0, _real,
@@ -629,6 +733,34 @@ createOrReplace
 			formatString: 0.00%
 			lineageTag: beff9ae0-c600-4b4c-9310-f99866d28e6b
 
+		measure 'Planejado PCP (m³)' = ```
+				SUM ( f_PlanPCPCarvao[Planejado m³] )
+				```
+			formatString: #,0
+			lineageTag: 4ec48ccc-89d3-42c5-abff-7603a459d5db
+
+		measure 'Carregado nos Dias do PCP (m³)' = ```
+				-- carregado só nos dias que têm planejamento do PCP (comparação justa com o planejado)
+				CALCULATE (
+				    [Carregado Carvão (m³)],
+				    KEEPFILTERS ( TREATAS ( VALUES ( f_PlanPCPCarvao[Data] ), d_Calendario[Date] ) )
+				)
+				```
+			formatString: #,0
+			lineageTag: 7bfe0f64-e8c8-479f-aa74-f29ac4a3d8aa
+
+		measure '% Aderência ao PCP' = ```
+				DIVIDE ( [Carregado nos Dias do PCP (m³)], [Planejado PCP (m³)] )
+				```
+			formatString: 0.00%
+			lineageTag: dae4a960-d64f-49ce-95bd-2c96707a5b50
+
+		measure 'Desvio PCP (m³)' = ```
+				[Carregado nos Dias do PCP (m³)] - [Planejado PCP (m³)]
+				```
+			formatString: #,0
+			lineageTag: a47e442f-4012-4d6c-8019-ca1a897bc7cc
+
 		column Coluna
 			dataType: string
 			isHidden
@@ -656,3 +788,15 @@ createOrReplace
 	relationship e9215339-9ee6-4919-a6cb-3c452d50e6a6
 		fromColumn: f_MetaCarvao.DESTINO
 		toColumn: d_Destino.DESTINO
+
+	relationship ac01cb26-56e4-4af1-bcef-db7a1d2a36d2
+		fromColumn: f_PlanPCPCarvao.'UPC Partição'
+		toColumn: d_UPC_Carvao.'UPC Partição'
+
+	relationship 2e2f29ca-a40b-46e1-9875-d894e7b246fc
+		fromColumn: f_PlanPCPCarvao.DESTINO
+		toColumn: d_Destino.DESTINO
+
+	relationship 68745a74-9980-4c12-81ac-e1f93bb89736
+		fromColumn: f_PlanPCPCarvao.Data
+		toColumn: d_Calendario.Date

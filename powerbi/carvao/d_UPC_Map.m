@@ -1,6 +1,7 @@
 // d_UPC_Map — liga a UPC da base de puxada (f_basePlan) à UPC da planilha de partição.
 // A busca é por palavra-chave, na ordem da lista (OURO VERDE antes de LAJEADO, etc.).
 // UPC sem correspondência fica como "SEM META DE PARTIÇÃO": o carregado dela continua no total.
+// GERDAU/UPC 104 não tem meta na partição, mas aparece com o próprio nome ("UPC GERDAU").
 // Para ligar uma UPC nova, acrescente {"PALAVRA DA BASE", "NOME NA PARTIÇÃO"} na lista.
 let
     Mapa    = {
@@ -21,7 +22,8 @@ let
                   {"MANGABA",         "UPC MANGABA"},
                   {"AGROBUSINESS",    "UPC AGROBUSINESS"},
                   {"DOURAFORTE",      "UPC DOURAFORTE"},
-                  {"FGMG",            "UPC FGMG"}
+                  {"FGMG",            "UPC FGMG"},
+                  {"GERDAU",          "UPC GERDAU"}
               },
     Fonte   = Table.Distinct(Table.SelectColumns(Table.SelectRows(f_basePlan, each [UPC] <> null), {"UPC"})),
     ComPart = Table.AddColumn(Fonte, "UPC Partição", each

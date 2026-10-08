@@ -8,8 +8,14 @@ VAR _meses =
         SUMMARIZE ( d_Calendario, d_Calendario[Ano], d_Calendario[Mês Número] ),
         "@Mes", DATE ( d_Calendario[Ano], d_Calendario[Mês Número], 1 )
     )
-RETURN
+VAR _meta =
     CALCULATE ( SUM ( f_MetaCarvao[Meta m³] ), TREATAS ( _meses, f_MetaCarvao[Mês] ) )
+-- sem meta na partição: 0 quando existe carga programada ou planejamento do PCP
+-- (vazio só quando não há nada, para não criar linhas sem dados nas tabelas)
+VAR _temDados =
+    NOT ISEMPTY ( f_basePlan ) || NOT ISEMPTY ( f_PlanPCPCarvao )
+RETURN
+    IF ( ISBLANK ( _meta ), IF ( _temDados, 0 ), _meta )
 
 // ---- Carregado Carvão (m³)   (formato: #,0)
 Carregado Carvão (m³) =
@@ -78,7 +84,8 @@ VAR _proj = _real + DIVIDE ( _real, _dias ) * _rest
 RETURN
     SWITCH (
         TRUE (),
-        ISBLANK ( _meta ) || _meta <= 0, BLANK (),
+        ISBLANK ( _meta ), BLANK (),
+        _meta <= 0, 0,
         ISBLANK ( _real ), 0,
         _real >= _meta, _meta,
         _rest <= 0, _real,
@@ -362,3 +369,23 @@ Viagens a Realizar Carvão =
 // ---- % Furo Carvão   (formato: 0.00%)
 % Furo Carvão =
 DIVIDE ( [Furos Carvão], [Viagens Planejadas Carvão] )
+
+// ---- Planejado PCP (m³)   (formato: #,0)
+Planejado PCP (m³) =
+SUM ( f_PlanPCPCarvao[Planejado m³] )
+
+// ---- Carregado nos Dias do PCP (m³)   (formato: #,0)
+Carregado nos Dias do PCP (m³) =
+-- carregado só nos dias que têm planejamento do PCP (comparação justa com o planejado)
+CALCULATE (
+    [Carregado Carvão (m³)],
+    KEEPFILTERS ( TREATAS ( VALUES ( f_PlanPCPCarvao[Data] ), d_Calendario[Date] ) )
+)
+
+// ---- % Aderência ao PCP   (formato: 0.00%)
+% Aderência ao PCP =
+DIVIDE ( [Carregado nos Dias do PCP (m³)], [Planejado PCP (m³)] )
+
+// ---- Desvio PCP (m³)   (formato: #,0)
+Desvio PCP (m³) =
+[Carregado nos Dias do PCP (m³)] - [Planejado PCP (m³)]

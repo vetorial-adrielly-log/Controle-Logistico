@@ -1,0 +1,111 @@
+createOrReplace
+
+	role 'Ferro Gusa'
+		modelPermission: read
+
+		tablePermission f_MetaPV = f_MetaPV[Item] IN { "FERRO GUSA", "FERRO GUSA-FORMATO IRREGULAR" }
+
+		tablePermission f_basePlan = FALSE()
+
+		tablePermission f_MetaCarvao = FALSE()
+
+		tablePermission f_PlanPCPCarvao = FALSE()
+
+		tablePermission f_Estoque_VS = FALSE()
+
+		tablePermission f_MetaPC = FALSE()
+
+		tablePermission f_tickets = FALSE()
+
+		tablePermission d_estoque_MP = FALSE()
+
+		tablePermission f_Estoque_porto = FALSE()
+
+		tablePermission f_Proximos_embarques = FALSE()
+
+	role 'Minério de Ferro'
+		modelPermission: read
+
+		tablePermission f_MetaPV = f_MetaPV[Item] IN { "MINERIO DE FERRO", "MINERIO DE FERRO HT-15" }
+
+		tablePermission f_basePlan = FALSE()
+
+		tablePermission f_MetaCarvao = FALSE()
+
+		tablePermission f_PlanPCPCarvao = FALSE()
+
+		tablePermission f_Estoque_VS = FALSE()
+
+		tablePermission f_MetaPC = FALSE()
+
+		tablePermission f_tickets = FALSE()
+
+		tablePermission d_estoque_MP = FALSE()
+
+		tablePermission f_Estoque_Gusa = FALSE()
+
+	role 'Co Produtos'
+		modelPermission: read
+
+		tablePermission f_MetaPV = NOT ( f_MetaPV[Item] IN { "CARVAO, VEGETAL, GRNL", "FERRO GUSA", "FERRO GUSA-FORMATO IRREGULAR", "MINERIO DE FERRO", "MINERIO DE FERRO HT-15" } )
+
+		tablePermission f_basePlan = FALSE()
+
+		tablePermission f_MetaCarvao = FALSE()
+
+		tablePermission f_PlanPCPCarvao = FALSE()
+
+		tablePermission f_Estoque_VS = FALSE()
+
+		tablePermission f_MetaPC = FALSE()
+
+		tablePermission f_tickets = FALSE()
+
+		tablePermission d_estoque_MP = FALSE()
+
+		tablePermission f_Estoque_Gusa = FALSE()
+
+		tablePermission f_Estoque_porto = FALSE()
+
+		tablePermission f_Proximos_embarques = FALSE()
+
+	role 'Carvão'
+		modelPermission: read
+
+		tablePermission f_MetaPV = FALSE()
+
+		tablePermission f_Volumetria = FALSE()
+
+		tablePermission f_MetaPC = FALSE()
+
+		tablePermission f_tickets = FALSE()
+
+		tablePermission d_estoque_MP = FALSE()
+
+		tablePermission f_Estoque_Gusa = FALSE()
+
+		tablePermission f_Estoque_porto = FALSE()
+
+		tablePermission f_Proximos_embarques = FALSE()
+
+	role 'Matéria Prima'
+		modelPermission: read
+
+		tablePermission f_MetaPV = f_MetaPV[Cliente] IN { "VS RRP", "VS CMG" }
+
+		tablePermission f_basePlan = FALSE()
+
+		tablePermission f_MetaCarvao = FALSE()
+
+		tablePermission f_PlanPCPCarvao = FALSE()
+
+		tablePermission f_Estoque_VS = FALSE()
+
+		tablePermission f_Estoque_Gusa = FALSE()
+
+		tablePermission f_Estoque_porto = FALSE()
+
+		tablePermission f_Proximos_embarques = FALSE()
+
+	role 'Gestão (todos os segmentos)'
+		modelPermission: read
