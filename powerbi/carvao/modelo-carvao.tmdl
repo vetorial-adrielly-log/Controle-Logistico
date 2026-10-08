@@ -220,6 +220,7 @@ createOrReplace
 					// f_PlanPCPCarvao — planejamento diário de puxada de carvão enviado pelo PCP por e-mail.
 					// O Power Automate grava cada e-mail "Planejamento de Expedição de Carvão - dd/mm" na tabela
 					// tbPlanPCP do arquivo "Planejamento PCP Carvao.xlsx" (pasta Indicadores › Planejamento PCP).
+					// Se o arquivo não for achado, o erro lista as pastas/arquivos que existem, para corrigir o nome.
 					// Uma linha por dia x UPC x destino (RRP/CMG), em m³.
 					let
 					    // mesma ligação de nomes usada em d_UPC_Map (o PCP usa nomes curtos: "Lageado", "Móvel"...)
@@ -244,12 +245,33 @@ createOrReplace
 					                   {"FGMG",            "UPC FGMG"},
 					                   {"GERDAU",          "UPC GERDAU"}
 					               },
-					    Arquivo  = fnArquivoSP(
+					    // procura o arquivo sem exigir o nome exato: ignora maiúsculas, acentos e espaços extras
+					    // (pasta "Planejamento PCP" e arquivo "Planejamento PCP Carvao.xlsx" ou "...Carvão.xlsx")
+					    Normal   = (t as text) as text =>
+					                   List.Accumulate(
+					                       {{"á","a"},{"à","a"},{"ã","a"},{"â","a"},{"é","e"},{"ê","e"},{"í","i"},
+					                        {"ó","o"},{"ô","o"},{"õ","o"},{"ú","u"},{"ç","c"},{"  "," "}},
+					                       Text.Lower(Text.Trim(t)),
+					                       (acc, par) => Text.Replace(acc, par{0}, par{1})),
+					    Indic    = fnPastaSP(
 					                   pSiteLog,
-					                   {"Shared Documents", "Campo Grande", "4. Carvão", "Programação de Expedição",
-					                    "Indicadores", "Planejamento PCP"},
-					                   "Planejamento PCP Carvao.xlsx"
+					                   {"Shared Documents", "Campo Grande", "4. Carvão", "Programação de Expedição", "Indicadores"}
 					               ),
+					    PastaPCP = Table.SelectRows(Indic, each [Content] is table
+					                                           and Text.Contains(Normal([Name]), "planejamento pcp")),
+					    Arqs     = if Table.IsEmpty(PastaPCP) then
+					                   error "Pasta ""Planejamento PCP"" não encontrada em Indicadores. Pastas existentes: "
+					                         & Text.Combine(Table.SelectRows(Indic, each [Content] is table)[Name], " | ")
+					               else Table.Combine(PastaPCP[Content]),
+					    Planilhas = Table.Sort(
+					                   Table.SelectRows(Arqs, each [Extension] = ".xlsx"
+					                                          and not Text.StartsWith([Name], "~$")
+					                                          and Text.StartsWith(Normal([Name]), "planejamento pcp carv")),
+					                   {{"Date modified", Order.Descending}}),
+					    Arquivo  = if Table.IsEmpty(Planilhas) then
+					                   error "Arquivo ""Planejamento PCP Carvao.xlsx"" não encontrado. Arquivos na pasta: "
+					                         & Text.Combine(Arqs[Name], " | ")
+					               else Planilhas{0}[Content],
 					    Pasta    = Excel.Workbook(Arquivo, null, true),
 					    Tabela   = Pasta{[Item = "tbPlanPCP", Kind = "Table"]}[Data],
 					    Datas    = Table.TransformColumns(Tabela, {{"Data", each
