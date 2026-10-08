@@ -77,22 +77,22 @@ Power Automate em si precisa ser montado e testado no seu ambiente.
 
 ## 5. Comparativo PCP x realizado e furo compensado
 
-A tabela "Carregamento de carvão por UPC" ganhou 7 colunas. As contas começam em **08/10/2026**
-(medida oculta `_Início PCP`; para mudar a data, altere só ela) e consideram **só dias já
-fechados** (até ontem):
+As contas são **acumuladas de 08/10/2026 até hoje, inclusive**. A data de início fica na medida
+oculta `_Início PCP`; para mudar, altere só ela. Hoje compara o dia de hoje; amanhã, a soma dos
+dois dias; e assim até o fim do mês. A partir do mês seguinte, o acumulado começa no dia 1.
+O planejamento de um dia futuro, que chega por e-mail na véspera, só entra quando o dia chegar.
 
-| Coluna | Medida | O que é |
+| Coluna da tabela | Medida | O que é |
 |---|---|---|
-| Plan. PCP (m³) | Planejado PCP até Ontem (m³) | planejado nos e-mails |
-| Real. PCP (m³) | Carregado nos Dias do PCP (m³) | carregado (OK) nesses dias, inclusive em UPC que não estava no planejamento do dia |
+| Plan. PCP Acum. (m³) | Planejado PCP Acumulado (m³) | soma do planejado nos e-mails, de 08/10 até hoje |
+| Real. Acum. (m³) | Carregado Acumulado PCP (m³) | carregado (OK) no mesmo período, incluindo o que já carregou hoje |
 | Desvio PCP (m³) | Desvio PCP (m³) | realizado − planejado |
 | % Ader. PCP | % Aderência ao PCP | realizado ÷ planejado |
-| Furo (m³) | Furo PCP (m³) | por dia, UPC e destino: o planejado que **não** foi carregado (planejado > realizado) |
-| Compensado (m³) | Furo Compensado PCP (m³) | por dia, UPC e destino: o que foi carregado **acima** do planejado (realizado > planejado) |
-| Saldo (m³) | Saldo Furo x Compensado (m³) | compensado − furo (positivo: compensou mais do que furou) |
+| Furo (m³) | Furo PCP (m³) | por dia, UPC e destino: o planejado que **não** foi carregado |
+| Compensado (m³) | Furo Compensado PCP (m³) | por dia, UPC e destino: o que foi carregado **acima** do planejado |
+| Saldo (m³) | Saldo Furo x Compensado (m³) | compensado − furo (= desvio) |
 
-Há também a medida **% Furo Compensado** (compensado ÷ furo), que não está na tabela.
+Também existe a medida **% Furo Compensado** (compensado ÷ furo), que não está na tabela.
 
-Exemplo: Lageado/CMG com 770 m³ planejados no dia e 650 carregados gera 120 m³ de **furo**.
-Lobo/RRP com 120 planejados e 235 carregados gera 115 m³ **compensados**. O saldo dos dois é −5.
-Desvio PCP = Compensado − Furo, sempre.
+Conferência com os dados de 08/10 (16h15): planejado 1.955 · realizado 2.938 · furo 761
+(Cabeceira Funda/RRP 111, Lageado/CMG 650) · compensado 1.744 · saldo +983.

@@ -381,39 +381,55 @@ VAR _ini = [_Início PCP]
 RETURN
     CALCULATE ( SUM ( f_PlanPCPCarvao[Planejado m³] ), KEEPFILTERS ( f_PlanPCPCarvao[Data] >= _ini ) )
 
-// ---- Planejado PCP até Ontem (m³)   (formato: #,0)
-Planejado PCP até Ontem (m³) =
--- planejado do PCP dos dias já fechados (de _Início PCP até ontem), para comparar com o realizado
-CALCULATE ( [Planejado PCP (m³)], KEEPFILTERS ( f_PlanPCPCarvao[Data] < TODAY () ) )
-
-// ---- Carregado nos Dias do PCP (m³)   (formato: #,0)
-Carregado nos Dias do PCP (m³) =
--- carregado de _Início PCP até ontem (todos os dias do período, em qualquer UPC/destino)
-VAR _ini = [_Início PCP]
+// ---- Planejado PCP Acumulado (m³)   (formato: #,0)
+Planejado PCP Acumulado (m³) =
+VAR _fim = MIN ( MAX ( d_Calendario[Date] ), TODAY () )
+VAR _ini = MAX ( DATE ( YEAR ( _fim ), MONTH ( _fim ), 1 ), [_Início PCP] )
 RETURN
-    CALCULATE (
-        [Carregado Carvão (m³)],
-        KEEPFILTERS ( DATESBETWEEN ( d_Calendario[Date], _ini, TODAY () - 1 ) )
+    IF (
+        _ini <= _fim,
+        CALCULATE (
+            [Planejado PCP (m³)],
+            REMOVEFILTERS ( d_Calendario ),
+            DATESBETWEEN ( d_Calendario[Date], _ini, _fim )
+        )
     )
 
-// ---- Desvio PCP (m³)   (formato: #,0)
+// ---- Carregado Acumulado PCP (m³)   (formato: #,0)
+Carregado Acumulado PCP (m³) =
+-- carregado (OK) no mesmo período do planejado acumulado, incluindo o que já carregou hoje
+VAR _fim = MIN ( MAX ( d_Calendario[Date] ), TODAY () )
+VAR _ini = MAX ( DATE ( YEAR ( _fim ), MONTH ( _fim ), 1 ), [_Início PCP] )
+RETURN
+    IF (
+        _ini <= _fim,
+        CALCULATE (
+            [Carregado Carvão (m³)],
+            REMOVEFILTERS ( d_Calendario ),
+            DATESBETWEEN ( d_Calendario[Date], _ini, _fim )
+        )
+    )
+
+// ---- Desvio PCP (m³)   (formato: +#,0;-#,0;0)
 Desvio PCP (m³) =
--- realizado - planejado PCP (dias fechados) = compensado - furo
-[Carregado nos Dias do PCP (m³)] - [Planejado PCP até Ontem (m³)]
+-- realizado acumulado - planejado acumulado (= compensado - furo)
+[Carregado Acumulado PCP (m³)] - [Planejado PCP Acumulado (m³)]
 
 // ---- % Aderência ao PCP   (formato: 0.00%)
 % Aderência ao PCP =
-DIVIDE ( [Carregado nos Dias do PCP (m³)], [Planejado PCP até Ontem (m³)] )
+DIVIDE ( [Carregado Acumulado PCP (m³)], [Planejado PCP Acumulado (m³)] )
 
 // ---- Furo PCP (m³)   (formato: #,0)
 Furo PCP (m³) =
 -- m³ planejados pelo PCP que não foram carregados no dia (planejado > realizado),
--- somando dia a dia por UPC e destino, de _Início PCP até ontem
-VAR _ini = [_Início PCP]
+-- somando dia a dia por UPC e destino, de _Início PCP até hoje
+VAR _fim = MIN ( MAX ( d_Calendario[Date] ), TODAY () )
+VAR _ini = MAX ( DATE ( YEAR ( _fim ), MONTH ( _fim ), 1 ), [_Início PCP] )
 VAR _dias =
     CALCULATETABLE (
         VALUES ( d_Calendario[Date] ),
-        KEEPFILTERS ( DATESBETWEEN ( d_Calendario[Date], _ini, TODAY () - 1 ) )
+        REMOVEFILTERS ( d_Calendario ),
+        DATESBETWEEN ( d_Calendario[Date], _ini, _fim )
     )
 VAR _combos =
     CROSSJOIN ( _dias, VALUES ( d_UPC_Carvao[UPC Partição] ), VALUES ( d_Destino[DESTINO] ) )
@@ -429,11 +445,13 @@ RETURN
 Furo Compensado PCP (m³) =
 -- m³ carregados acima do planejado do dia (realizado > planejado), por UPC e destino:
 -- é o "furo compensado"
-VAR _ini = [_Início PCP]
+VAR _fim = MIN ( MAX ( d_Calendario[Date] ), TODAY () )
+VAR _ini = MAX ( DATE ( YEAR ( _fim ), MONTH ( _fim ), 1 ), [_Início PCP] )
 VAR _dias =
     CALCULATETABLE (
         VALUES ( d_Calendario[Date] ),
-        KEEPFILTERS ( DATESBETWEEN ( d_Calendario[Date], _ini, TODAY () - 1 ) )
+        REMOVEFILTERS ( d_Calendario ),
+        DATESBETWEEN ( d_Calendario[Date], _ini, _fim )
     )
 VAR _combos =
     CROSSJOIN ( _dias, VALUES ( d_UPC_Carvao[UPC Partição] ), VALUES ( d_Destino[DESTINO] ) )
@@ -453,37 +471,3 @@ Saldo Furo x Compensado (m³) =
 // ---- % Furo Compensado   (formato: 0.00%)
 % Furo Compensado =
 DIVIDE ( [Furo Compensado PCP (m³)], [Furo PCP (m³)] )
-
-// ---- Planejado PCP Acumulado (m³)   (formato: #,0)
-Planejado PCP Acumulado (m³) =
--- planejado do PCP acumulado de _Início PCP (ou do dia 1 do mês, o que vier depois)
--- até a data do contexto. Tabela com filtro de mês: todos os e-mails do mês, inclusive o
--- de amanhã; gráfico por dia: soma corrida
-VAR _fim = MAX ( d_Calendario[Date] )
-VAR _ini = MAX ( DATE ( YEAR ( _fim ), MONTH ( _fim ), 1 ), [_Início PCP] )
-RETURN
-    IF (
-        _ini <= _fim,
-        CALCULATE (
-            [Planejado PCP (m³)],
-            REMOVEFILTERS ( d_Calendario ),
-            DATESBETWEEN ( d_Calendario[Date], _ini, _fim )
-        )
-    )
-
-// ---- Carregado Acumulado PCP (m³)   (formato: #,0)
-Carregado Acumulado PCP (m³) =
--- carregado acumulado no mesmo período: de _Início PCP (ou do dia 1 do mês) até a data
--- do contexto, sem passar de ontem (base D-1)
-VAR _max = MAX ( d_Calendario[Date] )
-VAR _ini = MAX ( DATE ( YEAR ( _max ), MONTH ( _max ), 1 ), [_Início PCP] )
-VAR _fim = MIN ( _max, TODAY () - 1 )
-RETURN
-    IF (
-        _ini <= _fim,
-        CALCULATE (
-            [Carregado Carvão (m³)],
-            REMOVEFILTERS ( d_Calendario ),
-            DATESBETWEEN ( d_Calendario[Date], _ini, _fim )
-        )
-    )
