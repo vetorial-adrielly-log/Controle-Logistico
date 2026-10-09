@@ -2,6 +2,8 @@
 // Mês atual: aba "Gestão de Puxada" da planilha de planejamento puxada (stg_Puxada).
 // Histórico: planilhas "Gestao Puxada AAAA.xlsx" da pasta Indicadores › "Gestão de Puxada Log x Pcp"
 // (todas as abas que tiverem o cabeçalho Data / Plan PCP nas 30 primeiras linhas; anos novos entram sozinhos).
+// Velocidade: cada aba é lida só até um limite fixo de linhas (quadro do mês: 60; histórico: 500 por aba),
+// para não varrer abas formatadas até o fim da planilha. Se o histórico falhar, o mês atual carrega mesmo assim.
 // Quando o mesmo dia aparece nas duas, vale a aba "Gestão de Puxada".
 // Uma linha por dia, em m³ (a planilha mostra mil m³: 2,15 = 2.150 m³; valores < 100 são multiplicados por 1.000).
 let
@@ -48,8 +50,9 @@ let
     //  - procura o cabeçalho (Data / Plan PCP) só nas 30 primeiras linhas; aba sem ele é pulada na hora
     //  - normaliza (acentos/maiúsculas) só a linha do cabeçalho, não a aba inteira
     //  - lê só as 9 colunas usadas, e só da linha do cabeçalho para baixo
-    LerAba   = (t as table, ano as number) as table =>
+    LerAba   = (t0 as table, ano as number, limite as number) as table =>
         let
+            t       = Table.FirstN(t0, limite),
             Vazia   = #table({"Data"} & List.Transform(Campos, each _{0}), {}),
             Topo    = Table.ToRows(Table.ReplaceErrorValues(Table.FirstN(t, 30),
                           List.Transform(Table.ColumnNames(t), each {_, null}))),
@@ -79,12 +82,14 @@ let
             else #table({"Data"} & List.Transform(Campos, each _{0}), Dias),
 
     // ---- mês atual: aba "Gestão de Puxada" da planilha de planejamento puxada
-    AbaAtual = List.First(List.Select(Table.ToRecords(stg_Puxada),
-                   each [Kind] = "Sheet" and Normal([Item]) = "gestao de puxada"), null),
+    Abas     = Table.SelectRows(stg_Puxada, each [Kind] = "Sheet"),
+    Direta   = Table.SelectRows(Abas, each [Item] = "Gestão de Puxada"),
+    AbaAtual = if not Table.IsEmpty(Direta) then Direta{0}
+               else List.First(List.Select(Table.ToRecords(Abas), each Normal([Item]) = "gestao de puxada"), null),
     Atual    = if AbaAtual = null then
                    error "Aba ""Gestão de Puxada"" não encontrada na planilha de puxada. Abas: "
                          & Text.Combine(Table.SelectRows(stg_Puxada, each [Kind] = "Sheet")[Item], " | ")
-               else Table.Buffer(Table.AddColumn(LerAba(AbaAtual[Data], Date.Year(DateTime.LocalNow())),
+               else Table.Buffer(Table.AddColumn(LerAba(AbaAtual[Data], Date.Year(DateTime.LocalNow()), 60),
                                     "Origem", each "Gestão de Puxada", type text)),
 
     // ---- histórico: Indicadores › Gestão de Puxada Log x Pcp › Gestao Puxada AAAA.xlsx
@@ -110,8 +115,9 @@ let
                        {#table({"Data"} & List.Transform(Campos, each _{0}), {})} &
                        List.Transform(
                            Table.SelectRows(Excel.Workbook(f[Content], false, true), each [Kind] = "Sheet")[Data],
-                           each LerAba(_, f[Ano])))),
-    Hist0    = Table.Combine({#table({"Data"} & List.Transform(Campos, each _{0}), {})} & Lidos),
+                           each LerAba(_, f[Ano], 500)))),
+    Hist0    = try Table.Buffer(Table.Combine({#table({"Data"} & List.Transform(Campos, each _{0}), {})} & Lidos))
+               otherwise #table({"Data"} & List.Transform(Campos, each _{0}), {}),
     // dia repetido em mais de uma aba do histórico: fica a primeira ocorrência
     Hist1    = Table.Distinct(Table.SelectRows(Hist0, each [#"Plan PCP m³"] <> null or [#"Real Log m³"] <> null), {"Data"}),
     DiasAtual = List.Buffer(Atual[Data]),
