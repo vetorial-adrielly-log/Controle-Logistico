@@ -15,6 +15,21 @@ segmentos ficam bloqueadas (`FALSE()`).
 As NFs (`f_Volumetria`) são filtradas pelo filtro do pedido (`f_MetaPV`), que é quem filtra a
 `f_Volumetria` no modelo.
 
+## Antes de aplicar: relação do estoque de carvão
+
+A relação **d_Calendario ↔ f_Estoque_VS** era **1:1 em ambas as direções**. Em relação 1:1, o
+filtro de segurança atravessa nos dois sentidos. Assim, o `FALSE()` em `f_Estoque_VS` (perfis
+Gusa, Minério, Co Produtos e Matéria Prima) esvaziava o **calendário**, e todas as telas desses
+perfis davam erro ou ficavam vazias. O perfil Carvão funcionava porque não bloqueia o estoque.
+
+Correção: deixar a relação **muitos-para-um, filtro em direção única** (calendário → estoque),
+como as demais tabelas de fatos.
+
+- **Exibição TMDL:** cole `corrige-relacao-estoque.tmdl` › Aplicar; **ou**
+- **Exibição de modelo:** clique duas vezes na linha entre `d_Calendario` e `f_Estoque_VS` ›
+  Tabela "de": `f_Estoque_VS` (DATA) · Tabela "para": `d_Calendario` (Date) ›
+  **Cardinalidade: Muitos para um (*:1)** › **Direção do filtro cruzado: Única** › OK.
+
 ## Como aplicar
 
 1. Power BI Desktop › **Exibição TMDL** › cole `perfis-rls.tmdl` › **Aplicar**.

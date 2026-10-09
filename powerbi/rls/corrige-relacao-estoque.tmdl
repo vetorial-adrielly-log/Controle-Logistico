@@ -1,0 +1,5 @@
+createOrReplace
+
+	relationship e403a031-c523-8d39-ff51-bdca93091bd5
+		fromColumn: f_Estoque_VS.DATA
+		toColumn: d_Calendario.Date
