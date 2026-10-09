@@ -19,7 +19,12 @@ RETURN
 
 // ---- Carregado Carvão (m³)   (formato: #,0)
 Carregado Carvão (m³) =
-CALCULATE ( SUM ( f_basePlan[M³] ), KEEPFILTERS ( f_basePlan[CARREGADO] = "OK" ) )
+-- volume carregado: usa a coluna "0,05" (m³ com o desconto de 5%) quando ela estiver preenchida;
+-- se estiver vazia, usa o M³ da carga
+CALCULATE (
+    SUMX ( f_basePlan, IF ( ISBLANK ( f_basePlan[0,05] ), f_basePlan[M³], f_basePlan[0,05] ) ),
+    KEEPFILTERS ( f_basePlan[CARREGADO] = "OK" )
+)
 
 // ---- Dias com Carregamento   (formato: 0)
 Dias com Carregamento =

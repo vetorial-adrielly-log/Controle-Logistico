@@ -451,7 +451,12 @@ createOrReplace
 			lineageTag: 02cba813-36be-4e1d-880b-63bc9c7e4588
 
 		measure 'Carregado Carvão (m³)' = ```
-				CALCULATE ( SUM ( f_basePlan[M³] ), KEEPFILTERS ( f_basePlan[CARREGADO] = "OK" ) )
+				-- volume carregado: usa a coluna "0,05" (m³ com o desconto de 5%) quando ela estiver preenchida;
+				-- se estiver vazia, usa o M³ da carga
+				CALCULATE (
+				    SUMX ( f_basePlan, IF ( ISBLANK ( f_basePlan[0,05] ), f_basePlan[M³], f_basePlan[0,05] ) ),
+				    KEEPFILTERS ( f_basePlan[CARREGADO] = "OK" )
+				)
 				```
 			formatString: #,0
 			lineageTag: a346e962-cd8e-4c82-8921-e4311c4c75b7
@@ -1097,6 +1102,6 @@ createOrReplace
 		fromColumn: f_MetaCarvao.DESTINO
 		toColumn: d_Destino.DESTINO
 
-	relationship 93a20f57-cf50-418e-9c2a-0e4b81e21839
+	relationship 3efab65a-e31b-43d9-83bf-53916bedf4d4
 		fromColumn: f_GestaoPuxada.Data
 		toColumn: d_Calendario.Date
