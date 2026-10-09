@@ -257,7 +257,7 @@ createOrReplace
 					// f_GestaoPuxada — planejado PCP x planejado Log x realizado, por dia (quadro "GESTÃO DE TRANSPORTE DE CARVÃO").
 					// Mês atual: aba "Gestão de Puxada" da planilha de planejamento puxada (stg_Puxada).
 					// Histórico: planilhas "Gestao Puxada AAAA.xlsx" da pasta Indicadores › "Gestão de Puxada Log x Pcp"
-					// (todas as abas que tiverem o cabeçalho Data / Plan PCP; anos novos entram sozinhos).
+					// (todas as abas que tiverem o cabeçalho Data / Plan PCP nas 30 primeiras linhas; anos novos entram sozinhos).
 					// Quando o mesmo dia aparece nas duas, vale a aba "Gestão de Puxada".
 					// Uma linha por dia, em m³ (a planilha mostra mil m³: 2,15 = 2.150 m³; valores < 100 são multiplicados por 1.000).
 					let
@@ -300,29 +300,39 @@ createOrReplace
 					                {"Furos PCP",     "furos pcp"},
 					                {"MDC Entregue",  "mdc entregue"}},
 
-					    // lê uma aba no layout do quadro: acha a(s) linha(s) de cabeçalho e pega os dias abaixo
+					    // lê uma aba no layout do quadro. Para ser rápido:
+					    //  - procura o cabeçalho (Data / Plan PCP) só nas 30 primeiras linhas; aba sem ele é pulada na hora
+					    //  - normaliza (acentos/maiúsculas) só a linha do cabeçalho, não a aba inteira
+					    //  - lê só as 9 colunas usadas, e só da linha do cabeçalho para baixo
 					    LerAba   = (t as table, ano as number) as table =>
 					        let
-					            SemErro = Table.ReplaceErrorValues(t, List.Transform(Table.ColumnNames(t), each {_, null})),
-					            Linhas  = List.Buffer(Table.ToRows(SemErro)),
-					            Norm    = List.Buffer(List.Transform(Linhas, each List.Transform(_, (c) => if c = null then "" else Normal(c)))),
-					            Cabecs  = List.Select(List.Positions(Norm), (i) =>
-					                          List.Contains(Norm{i}, "data") and List.Contains(Norm{i}, "plan pcp")),
-					            Linha   = (i as number) as nullable list =>
-					                let
-					                    h    = List.Last(List.Select(Cabecs, (c) => c < i), null),
-					                    cab  = if h = null then null else Norm{h},
-					                    r    = Linhas{i},
-					                    col  = (nome as text) => List.PositionOf(cab, nome),
-					                    data = if h = null then null else ParaData(r{col("data")}, ano),
-					                    vals = List.Transform(Campos, (c) =>
-					                               let k = col(c{1}), v = if k >= 0 then Num(r{k}) else null
-					                               in if Text.EndsWith(c{0}, "m³") then MilM3(v) else v)
-					                in
-					                    if data = null then null else {data} & vals,
-					            Dias    = List.RemoveNulls(List.Transform(List.Positions(Linhas), Linha))
+					            Vazia   = #table({"Data"} & List.Transform(Campos, each _{0}), {}),
+					            Topo    = Table.ToRows(Table.ReplaceErrorValues(Table.FirstN(t, 30),
+					                          List.Transform(Table.ColumnNames(t), each {_, null}))),
+					            Rotulo  = (c as any) as text => if c is text then Text.Lower(Text.Trim(c)) else "",
+					            iCab    = List.PositionOf(List.Transform(Topo, (r) =>
+					                          let x = List.Transform(r, Rotulo) in List.Contains(x, "data") and List.Contains(x, "plan pcp")), true),
+					            Cab     = if iCab < 0 then {} else List.Transform(Topo{iCab}, (c) => if c is text then Normal(c) else ""),
+					            Nomes   = Table.ColumnNames(t),
+					            kData   = List.PositionOf(Cab, "data"),
+					            kCampos = List.Transform(Campos, (c) => List.PositionOf(Cab, c{1})),
+					            Usadas  = List.Transform(List.Select({kData} & kCampos, (k) => k >= 0), (k) => Nomes{k}),
+					            Corpo   = Table.SelectColumns(Table.Skip(t, iCab + 1), List.Distinct(Usadas)),
+					            SemErro = Table.ReplaceErrorValues(Corpo, List.Transform(List.Distinct(Usadas), each {_, null})),
+					            // linhas sem data (total, linhas em branco até o fim da aba) saem antes da conversão
+					            Linhas  = Table.ToRecords(Table.SelectRows(SemErro, each Record.Field(_, Nomes{kData}) <> null)),
+					            Pega    = (r as record, k as number) => if k < 0 then null else Record.Field(r, Nomes{k}),
+					            Dias    = List.RemoveNulls(List.Transform(Linhas, (r) =>
+					                          let
+					                              data = ParaData(Pega(r, kData), ano),
+					                              vals = List.Transform(List.Zip({Campos, kCampos}), (z) =>
+					                                         let v = Num(Pega(r, z{1}))
+					                                         in if Text.EndsWith(z{0}{0}, "m³") then MilM3(v) else v)
+					                          in
+					                              if data = null then null else {data} & vals))
 					        in
-					            #table({"Data"} & List.Transform(Campos, each _{0}), Dias),
+					            if iCab < 0 or kData < 0 then Vazia
+					            else #table({"Data"} & List.Transform(Campos, each _{0}), Dias),
 
 					    // ---- mês atual: aba "Gestão de Puxada" da planilha de planejamento puxada
 					    AbaAtual = List.First(List.Select(Table.ToRecords(stg_Puxada),
@@ -330,8 +340,8 @@ createOrReplace
 					    Atual    = if AbaAtual = null then
 					                   error "Aba ""Gestão de Puxada"" não encontrada na planilha de puxada. Abas: "
 					                         & Text.Combine(Table.SelectRows(stg_Puxada, each [Kind] = "Sheet")[Item], " | ")
-					               else Table.AddColumn(LerAba(AbaAtual[Data], Date.Year(DateTime.LocalNow())),
-					                                    "Origem", each "Gestão de Puxada", type text),
+					               else Table.Buffer(Table.AddColumn(LerAba(AbaAtual[Data], Date.Year(DateTime.LocalNow())),
+					                                    "Origem", each "Gestão de Puxada", type text)),
 
 					    // ---- histórico: Indicadores › Gestão de Puxada Log x Pcp › Gestao Puxada AAAA.xlsx
 					    Indic    = fnPastaSP(
@@ -1081,6 +1091,6 @@ createOrReplace
 		fromColumn: f_MetaCarvao.DESTINO
 		toColumn: d_Destino.DESTINO
 
-	relationship a9cebaa5-c153-4aa8-b304-016d303a79e2
+	relationship 361057e3-73f9-49f8-a8fa-2f08c299d7cd
 		fromColumn: f_GestaoPuxada.Data
 		toColumn: d_Calendario.Date
