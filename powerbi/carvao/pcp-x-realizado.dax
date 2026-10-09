@@ -1,6 +1,6 @@
 // PCP x Realizado (HTML) — tabela 'Medidas Carvão', visual HTML Content
 // Colunas por dia (do dia 1 do mês até hoje): azul = realizado, azul-escuro = planejado PCP,
-// laranja = diferença entre os dois (empilhada sobre a coluna menor) com o valor (real - PCP) acima.
+// vermelho = diferença entre os dois (empilhada sobre a coluna menor) com o valor (real - PCP) acima.
 // O SVG usa viewBox fixo de 1400 x 190 e se ajusta à largura do visual (proporção ~ 8:1).
 PCP x Realizado HTML =
 VAR _fim = MIN ( MAX ( d_Calendario[Date] ), TODAY () )
@@ -27,11 +27,10 @@ VAR _max = MAXX ( _t, MAX ( [@R], [@P] ) )
 VAR _totR = SUMX ( _t, [@R] )
 VAR _totP = SUMX ( _t, [@P] )
 VAR _totD = _totR - _totP
--- cores da identidade visual: verde (realizado), cinza (PCP), laranja (diferença)
+-- cores da identidade visual: verde (realizado), cinza (PCP), vermelho (diferença, o mesmo dos cards)
 VAR _cR = "#4D8264"
 VAR _cP = "#5F5E5A"
-VAR _cD = "#D9822B"
-VAR _cTit = "#284D38"
+VAR _cD = "#C62E2E"
 -- geometria (unidades do viewBox)
 VAR _W = 1400
 VAR _H = 190
@@ -93,8 +92,7 @@ VAR _barras =
 VAR _leg = "display:inline-flex;align-items:center;gap:4px;margin-left:12px"
 VAR _sq = "display:inline-block;width:10px;height:10px;border-radius:2px;background:"
 VAR _cab =
-    "<div style='display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:4px;margin:0 0 2px'>"
-        & "<div style='font-size:12px;font-weight:700;color:" & _cTit & "'>PLANEJADO PCP X REALIZADO (m&#179;)</div>"
+    "<div style='display:flex;align-items:center;justify-content:flex-end;flex-wrap:wrap;gap:4px;margin:0 0 2px'>"
         & "<div style='font-size:11px;color:#3D3D3A'>"
         & "<span style='" & _leg & "'><span style='" & _sq & _cR & "'></span>Realizado</span>"
         & "<span style='" & _leg & "'><span style='" & _sq & _cP & "'></span>Planejado PCP</span>"
