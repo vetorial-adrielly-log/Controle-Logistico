@@ -73,7 +73,7 @@ VAR _vPrev = [Previsão Carvão]
 VAR _vMed  = [Média Diária Carvão]
 VAR _vNec  = [Média Necessária Carvão]
 VAR _vDisp = [Lacuna Carvão]
--- PCP (e-mail do planejamento diário), acumulado de 08/10 até hoje
+-- PCP (aba "Gestão de Puxada" + histórico), acumulado do dia 1 do mês até hoje
 VAR _vPcpPlan = [Planejado PCP Acumulado (m³)]
 VAR _vFuro    = [Furo PCP (m³)]
 VAR _vComp    = [Furo Compensado PCP (m³)]

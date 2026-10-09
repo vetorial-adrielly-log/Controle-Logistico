@@ -10,10 +10,10 @@ VAR _meses =
     )
 VAR _meta =
     CALCULATE ( SUM ( f_MetaCarvao[Meta m³] ), TREATAS ( _meses, f_MetaCarvao[Mês] ) )
--- sem meta na partição: 0 quando existe carga programada ou planejamento do PCP
+-- sem meta na partição: 0 quando existe carga programada
 -- (vazio só quando não há nada, para não criar linhas sem dados nas tabelas)
 VAR _temDados =
-    NOT ISEMPTY ( f_basePlan ) || NOT ISEMPTY ( f_PlanPCPCarvao )
+    NOT ISEMPTY ( f_basePlan )
 RETURN
     IF ( ISBLANK ( _meta ), IF ( _temDados, 0 ), _meta )
 
@@ -370,44 +370,102 @@ Viagens a Realizar Carvão =
 % Furo Carvão =
 DIVIDE ( [Furos Carvão], [Viagens Planejadas Carvão] )
 
-// ---- _Início PCP   (formato: dd/mm/yyyy)
-_Início PCP =
--- data a partir da qual as contas do PCP valem (planejado, realizado, furo, compensado, acumulados)
-DATE ( 2026, 10, 8 )
+// ---- _Sem Recorte UPC
+_Sem Recorte UPC =
+-- TRUE quando não há filtro de UPC, destino ou transportador (o planejado do PCP é só o total do dia)
+NOT (
+    ISFILTERED ( d_UPC_Carvao ) || ISFILTERED ( d_UPC_Map ) || ISFILTERED ( d_UPC )
+        || ISFILTERED ( d_Destino ) || ISFILTERED ( d_Transportador )
+        || ISFILTERED ( f_basePlan[UPC] ) || ISFILTERED ( f_basePlan[DESTINO] )
+)
 
 // ---- Planejado PCP (m³)   (formato: #,0)
 Planejado PCP (m³) =
-VAR _ini = [_Início PCP]
-RETURN
-    CALCULATE ( SUM ( f_PlanPCPCarvao[Planejado m³] ), KEEPFILTERS ( f_PlanPCPCarvao[Data] >= _ini ) )
+-- planejado do PCP no período filtrado (aba "Gestão de Puxada" + histórico)
+IF ( [_Sem Recorte UPC], SUM ( f_GestaoPuxada[Plan PCP m³] ) )
+
+// ---- Planejado Log (m³)   (formato: #,0)
+Planejado Log (m³) =
+-- planejado da logística no período filtrado
+IF ( [_Sem Recorte UPC], SUM ( f_GestaoPuxada[Plan Log m³] ) )
+
+// ---- Veículos Planejados   (formato: #,0)
+Veículos Planejados =
+IF ( [_Sem Recorte UPC], SUM ( f_GestaoPuxada[Veículos Plan] ) )
+
+// ---- Veículos Adicionais   (formato: #,0)
+Veículos Adicionais =
+IF ( [_Sem Recorte UPC], SUM ( f_GestaoPuxada[Adicionais] ) )
+
+// ---- Furos Log (veículos)   (formato: #,0)
+Furos Log (veículos) =
+IF ( [_Sem Recorte UPC], SUM ( f_GestaoPuxada[Furos Log] ) )
+
+// ---- Furos PCP (veículos)   (formato: #,0)
+Furos PCP (veículos) =
+IF ( [_Sem Recorte UPC], SUM ( f_GestaoPuxada[Furos PCP] ) )
+
+// ---- MDC Entregue   (formato: #,0.00)
+MDC Entregue =
+IF ( [_Sem Recorte UPC], SUM ( f_GestaoPuxada[MDC Entregue] ) )
+
+// ---- % Furo Veículos   (formato: 0%)
+% Furo Veículos =
+-- igual à planilha: furos da logística / (veículos planejados + adicionais)
+DIVIDE ( [Furos Log (veículos)], [Veículos Planejados] + [Veículos Adicionais] )
 
 // ---- Planejado PCP Acumulado (m³)   (formato: #,0)
 Planejado PCP Acumulado (m³) =
+-- planejado do PCP somado do dia 1 do mês até hoje (hoje entra; amanhã soma os dois dias, e assim por diante)
 VAR _fim = MIN ( MAX ( d_Calendario[Date] ), TODAY () )
-VAR _ini = MAX ( DATE ( YEAR ( _fim ), MONTH ( _fim ), 1 ), [_Início PCP] )
+VAR _ini = DATE ( YEAR ( _fim ), MONTH ( _fim ), 1 )
+VAR _dias =
+    CALCULATETABLE (
+        VALUES ( f_GestaoPuxada[Data] ),
+        REMOVEFILTERS ( d_Calendario ),
+        DATESBETWEEN ( d_Calendario[Date], _ini, _fim ),
+        NOT ISBLANK ( f_GestaoPuxada[Plan PCP m³] )
+    )
 RETURN
     IF (
-        _ini <= _fim,
-        CALCULATE (
-            [Planejado PCP (m³)],
-            REMOVEFILTERS ( d_Calendario ),
-            DATESBETWEEN ( d_Calendario[Date], _ini, _fim )
-        )
+        [_Sem Recorte UPC],
+        CALCULATE ( [Planejado PCP (m³)], REMOVEFILTERS ( d_Calendario ), TREATAS ( _dias, d_Calendario[Date] ) )
     )
 
 // ---- Carregado Acumulado PCP (m³)   (formato: #,0)
 Carregado Acumulado PCP (m³) =
--- carregado (OK) no mesmo período do planejado acumulado, incluindo o que já carregou hoje
+-- carregado (OK) nos mesmos dias do planejado acumulado, incluindo o que já carregou hoje
 VAR _fim = MIN ( MAX ( d_Calendario[Date] ), TODAY () )
-VAR _ini = MAX ( DATE ( YEAR ( _fim ), MONTH ( _fim ), 1 ), [_Início PCP] )
+VAR _ini = DATE ( YEAR ( _fim ), MONTH ( _fim ), 1 )
+VAR _dias =
+    CALCULATETABLE (
+        VALUES ( f_GestaoPuxada[Data] ),
+        REMOVEFILTERS ( d_Calendario ),
+        DATESBETWEEN ( d_Calendario[Date], _ini, _fim ),
+        NOT ISBLANK ( f_GestaoPuxada[Plan PCP m³] )
+    )
 RETURN
     IF (
-        _ini <= _fim,
-        CALCULATE (
-            [Carregado Carvão (m³)],
-            REMOVEFILTERS ( d_Calendario ),
-            DATESBETWEEN ( d_Calendario[Date], _ini, _fim )
-        )
+        [_Sem Recorte UPC],
+        CALCULATE ( [Carregado Carvão (m³)], REMOVEFILTERS ( d_Calendario ), TREATAS ( _dias, d_Calendario[Date] ) )
+    )
+
+// ---- Planejado Log Acumulado (m³)   (formato: #,0)
+Planejado Log Acumulado (m³) =
+-- planejado da logística nos mesmos dias do planejado acumulado do PCP
+VAR _fim = MIN ( MAX ( d_Calendario[Date] ), TODAY () )
+VAR _ini = DATE ( YEAR ( _fim ), MONTH ( _fim ), 1 )
+VAR _dias =
+    CALCULATETABLE (
+        VALUES ( f_GestaoPuxada[Data] ),
+        REMOVEFILTERS ( d_Calendario ),
+        DATESBETWEEN ( d_Calendario[Date], _ini, _fim ),
+        NOT ISBLANK ( f_GestaoPuxada[Plan PCP m³] )
+    )
+RETURN
+    IF (
+        [_Sem Recorte UPC],
+        CALCULATE ( [Planejado Log (m³)], REMOVEFILTERS ( d_Calendario ), TREATAS ( _dias, d_Calendario[Date] ) )
     )
 
 // ---- Desvio PCP (m³)   (formato: +#,0;-#,0;0)
@@ -419,48 +477,64 @@ Desvio PCP (m³) =
 % Aderência ao PCP =
 DIVIDE ( [Carregado Acumulado PCP (m³)], [Planejado PCP Acumulado (m³)] )
 
+// ---- % Furo PCP x Log   (formato: +0.00%;-0.00%;0.00%)
+% Furo PCP x Log =
+-- igual à planilha: realizado / planejado PCP - 1 (negativo = carregou menos que o PCP)
+VAR _p = [Planejado PCP Acumulado (m³)]
+RETURN IF ( _p > 0, DIVIDE ( [Carregado Acumulado PCP (m³)], _p ) - 1 )
+
+// ---- % Furo Log x Log   (formato: +0.00%;-0.00%;0.00%)
+% Furo Log x Log =
+-- igual à planilha: realizado / planejado Log - 1
+VAR _p = [Planejado Log Acumulado (m³)]
+RETURN IF ( _p > 0, DIVIDE ( [Carregado Acumulado PCP (m³)], _p ) - 1 )
+
 // ---- Furo PCP (m³)   (formato: #,0)
 Furo PCP (m³) =
--- m³ planejados pelo PCP que não foram carregados no dia (planejado > realizado),
--- somando dia a dia por UPC e destino, de _Início PCP até hoje
+-- m³ planejados pelo PCP que não foram carregados no dia (planejado > realizado), somando dia a dia no mês até hoje
 VAR _fim = MIN ( MAX ( d_Calendario[Date] ), TODAY () )
-VAR _ini = MAX ( DATE ( YEAR ( _fim ), MONTH ( _fim ), 1 ), [_Início PCP] )
+VAR _ini = DATE ( YEAR ( _fim ), MONTH ( _fim ), 1 )
 VAR _dias =
     CALCULATETABLE (
-        VALUES ( d_Calendario[Date] ),
+        VALUES ( f_GestaoPuxada[Data] ),
         REMOVEFILTERS ( d_Calendario ),
-        DATESBETWEEN ( d_Calendario[Date], _ini, _fim )
+        DATESBETWEEN ( d_Calendario[Date], _ini, _fim ),
+        NOT ISBLANK ( f_GestaoPuxada[Plan PCP m³] )
     )
-VAR _combos =
-    CROSSJOIN ( _dias, VALUES ( d_UPC_Carvao[UPC Partição] ), VALUES ( d_Destino[DESTINO] ) )
 RETURN
-    SUMX (
-        _combos,
-        VAR _p = COALESCE ( [Planejado PCP (m³)], 0 )
-        VAR _r = COALESCE ( [Carregado Carvão (m³)], 0 )
-        RETURN MAX ( _p - _r, 0 )
+    IF (
+        [_Sem Recorte UPC],
+        SUMX (
+            _dias,
+            VAR _d = f_GestaoPuxada[Data]
+            VAR _p = CALCULATE ( SUM ( f_GestaoPuxada[Plan PCP m³] ), REMOVEFILTERS ( d_Calendario ), d_Calendario[Date] = _d )
+            VAR _r = COALESCE ( CALCULATE ( [Carregado Carvão (m³)], REMOVEFILTERS ( d_Calendario ), d_Calendario[Date] = _d ), 0 )
+            RETURN MAX ( _p - _r, 0 )
+        )
     )
 
 // ---- Furo Compensado PCP (m³)   (formato: #,0)
 Furo Compensado PCP (m³) =
--- m³ carregados acima do planejado do dia (realizado > planejado), por UPC e destino:
--- é o "furo compensado"
+-- m³ carregados acima do planejado do PCP no dia (realizado > planejado): é o "furo compensado"
 VAR _fim = MIN ( MAX ( d_Calendario[Date] ), TODAY () )
-VAR _ini = MAX ( DATE ( YEAR ( _fim ), MONTH ( _fim ), 1 ), [_Início PCP] )
+VAR _ini = DATE ( YEAR ( _fim ), MONTH ( _fim ), 1 )
 VAR _dias =
     CALCULATETABLE (
-        VALUES ( d_Calendario[Date] ),
+        VALUES ( f_GestaoPuxada[Data] ),
         REMOVEFILTERS ( d_Calendario ),
-        DATESBETWEEN ( d_Calendario[Date], _ini, _fim )
+        DATESBETWEEN ( d_Calendario[Date], _ini, _fim ),
+        NOT ISBLANK ( f_GestaoPuxada[Plan PCP m³] )
     )
-VAR _combos =
-    CROSSJOIN ( _dias, VALUES ( d_UPC_Carvao[UPC Partição] ), VALUES ( d_Destino[DESTINO] ) )
 RETURN
-    SUMX (
-        _combos,
-        VAR _p = COALESCE ( [Planejado PCP (m³)], 0 )
-        VAR _r = COALESCE ( [Carregado Carvão (m³)], 0 )
-        RETURN MAX ( _r - _p, 0 )
+    IF (
+        [_Sem Recorte UPC],
+        SUMX (
+            _dias,
+            VAR _d = f_GestaoPuxada[Data]
+            VAR _p = CALCULATE ( SUM ( f_GestaoPuxada[Plan PCP m³] ), REMOVEFILTERS ( d_Calendario ), d_Calendario[Date] = _d )
+            VAR _r = COALESCE ( CALCULATE ( [Carregado Carvão (m³)], REMOVEFILTERS ( d_Calendario ), d_Calendario[Date] = _d ), 0 )
+            RETURN MAX ( _r - _p, 0 )
+        )
     )
 
 // ---- Saldo Furo x Compensado (m³)   (formato: +#,0;-#,0;0)

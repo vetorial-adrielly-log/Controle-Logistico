@@ -62,6 +62,61 @@ A base de puxada e a partição usam nomes diferentes para as UPCs. A ligação 
 
 Se GERDAU/UPC 104 for alguma UPC da partição (FGMG?), acrescente `{"GERDAU", "UPC FGMG"}` na lista.
 
+## Planejado PCP x realizado (Gestão de Puxada)
+
+O planejado do PCP vem do quadro **"GESTÃO DE TRANSPORTE DE CARVÃO"** (consulta `f_GestaoPuxada`, um valor por dia).
+A versão anterior lia o e-mail do PCP por Power Automate; ela foi retirada.
+
+| Período | Origem |
+|---|---|
+| **Mês atual** | aba **Gestão de Puxada** da planilha de planejamento puxada (`Planejamento Puxada_Rev_Atualizado.xlsx`, a mesma de `f_basePlan`) |
+| **Histórico** | `Gestao Puxada 2026.xlsx` em Indicadores › **Gestão de Puxada Log x Pcp**. Lê todas as abas com o cabeçalho Data / Plan PCP. Um arquivo novo de outro ano (`Gestao Puxada 2027.xlsx`) entra sozinho |
+
+- Quando o mesmo dia está nas duas planilhas, vale a aba **Gestão de Puxada**.
+- A planilha mostra mil m³ (2,15 = 2.150 m³). Por isso, valores de m³ menores que 100 são multiplicados por 1.000.
+- Dias sem nada lançado, como o resto do mês ou as linhas com 0, ficam de fora.
+
+Colunas lidas: Plan PCP, Plan Log, Real Log, Veículos Plan, Adicionais, Furos Log, Furos PCP, MDC entregue.
+
+**O realizado continua sendo o da base de puxada** (`Carregado Carvão (m³)`, cargas OK). Ele bate com o
+"Real Log" da planilha: em 01/10, 2.462 m³ na base e 2,46 mil m³ na planilha.
+
+**O planejado do PCP é um total por dia, sem UPC e sem destino.** Por isso as medidas de PCP ficam
+**vazias nas linhas de UPC ou destino** e quando há filtro de UPC, destino ou transportador. Elas
+aparecem na linha de total, em tabelas por dia e nos cards da Visão Geral.
+
+Acumulado e furos:
+
+- **Acumulado:** do dia 1 do mês até hoje, incluindo hoje. Entram só os dias com Plan PCP lançado.
+- **Furo:** planejado − realizado em cada dia, quando o planejado é maior.
+- **Compensado:** realizado − planejado em cada dia, quando o realizado é maior.
+- **Saldo:** compensado − furo.
+
+Medidas que já existiam e continuam com o mesmo nome (os visuais não mudam):
+
+- `Planejado PCP (m³)`, `Planejado PCP Acumulado (m³)`, `Carregado Acumulado PCP (m³)`
+- `Desvio PCP (m³)`, `% Aderência ao PCP`
+- `Furo PCP (m³)`, `Furo Compensado PCP (m³)`, `Saldo Furo x Compensado (m³)`, `% Furo Compensado`
+
+Medidas novas, iguais às colunas da planilha:
+
+- `Planejado Log (m³)`, `Planejado Log Acumulado (m³)`
+- `% Furo PCP x Log`, `% Furo Log x Log`: realizado ÷ planejado − 1
+- `Veículos Planejados`, `Veículos Adicionais`, `Furos Log (veículos)`, `Furos PCP (veículos)`
+- `% Furo Veículos`: furos Log ÷ (planejados + adicionais), a mesma conta da planilha
+- `MDC Entregue`
+
+### Como trocar no arquivo
+
+1. **Exibição TMDL:** cole `modelo-carvao.tmdl` e clique em **Aplicar**. Isso cria `f_GestaoPuxada`, a relação
+   `f_GestaoPuxada[Data]` → `d_Calendario[Date]` e as medidas novas, e tira das medidas qualquer uso da tabela antiga.
+2. **Exibição de modelo:** clique com o botão direito em `f_PlanPCPCarvao` › **Excluir do modelo**. As relações dela saem junto.
+3. **Exibição TMDL:** cole `../rls/perfis-rls.tmdl` e clique em **Aplicar**. Os perfis que não são de Carvão passam a bloquear
+   `f_GestaoPuxada`, no lugar da tabela antiga.
+4. Clique em **Atualizar**, salve e publique.
+5. No Power Automate, desligue ou exclua o fluxo do e-mail "Planejamento de Expedição de Carvão".
+   A planilha `Planejamento PCP Carvao.xlsx` deixa de ser usada.
+
 ## O que cada indicador compara (igual a Ferro Gusa)
 
 | Card / visual | Carvão |

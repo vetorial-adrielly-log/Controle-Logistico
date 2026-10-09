@@ -179,120 +179,202 @@ createOrReplace
 					in
 					    ComPart
 
-	table 'f_PlanPCPCarvao'
-		lineageTag: 1fa44bad-e9c9-43ab-8827-6d87d317fbd7
+	table 'f_GestaoPuxada'
+		lineageTag: 63690514-8be6-4d19-acd6-b0a3b7106c97
 
 		column 'Data'
 			dataType: dateTime
 			formatString: dd/mm/yyyy
-			lineageTag: 3fbc9304-d325-4efa-95e5-ef8f3e653333
+			lineageTag: 826aea2f-6163-4c71-8953-c549bee2065a
 			summarizeBy: none
 			sourceColumn: Data
 
-		column 'UPC (e-mail)'
-			dataType: string
-			lineageTag: f8e84fa6-70ef-4efa-99b5-8a71633a3859
-			summarizeBy: none
-			sourceColumn: UPC (e-mail)
-
-		column 'UPC Partição'
-			dataType: string
-			lineageTag: 0b15f91f-9718-406f-bac9-3ae7354a619b
-			summarizeBy: none
-			sourceColumn: UPC Partição
-
-		column 'DESTINO'
-			dataType: string
-			lineageTag: 50525e13-6bf9-41a3-9394-0cace4a66e32
-			summarizeBy: none
-			sourceColumn: DESTINO
-
-		column 'Planejado m³'
+		column 'Plan PCP m³'
 			dataType: double
 			formatString: #,0
-			lineageTag: 3f47b681-6ef8-4154-a649-9faf269e1d6f
+			lineageTag: d303ed25-34c1-432e-b4b4-aec3e620ee4b
 			summarizeBy: none
-			sourceColumn: Planejado m³
+			sourceColumn: Plan PCP m³
 
-		partition 'f_PlanPCPCarvao' = m
+		column 'Plan Log m³'
+			dataType: double
+			formatString: #,0
+			lineageTag: 9ceba895-8d39-46d6-adea-c93b2b8fe97c
+			summarizeBy: none
+			sourceColumn: Plan Log m³
+
+		column 'Real Log m³'
+			dataType: double
+			formatString: #,0
+			lineageTag: ead2c4b4-df0c-4f8a-99c3-932f58708142
+			summarizeBy: none
+			sourceColumn: Real Log m³
+
+		column 'Veículos Plan'
+			dataType: double
+			formatString: #,0
+			lineageTag: f1bf00d7-0fa0-4d33-b567-de058e83a624
+			summarizeBy: none
+			sourceColumn: Veículos Plan
+
+		column 'Adicionais'
+			dataType: double
+			formatString: #,0
+			lineageTag: 8eb3b4b1-f3a3-4910-91da-b5c4ecc98e5b
+			summarizeBy: none
+			sourceColumn: Adicionais
+
+		column 'Furos Log'
+			dataType: double
+			formatString: #,0
+			lineageTag: 1c4021a9-0f79-427e-8a23-80d8127ff9fc
+			summarizeBy: none
+			sourceColumn: Furos Log
+
+		column 'Furos PCP'
+			dataType: double
+			formatString: #,0
+			lineageTag: c5762280-0293-4932-8746-0e81594c0919
+			summarizeBy: none
+			sourceColumn: Furos PCP
+
+		column 'MDC Entregue'
+			dataType: double
+			formatString: #,0.00
+			lineageTag: bc6ed4dc-7e30-4b0c-9739-7224acd94557
+			summarizeBy: none
+			sourceColumn: MDC Entregue
+
+		column 'Origem'
+			dataType: string
+			lineageTag: 3e939a75-2092-48c2-a500-026f9b30402f
+			summarizeBy: none
+			sourceColumn: Origem
+
+		partition 'f_GestaoPuxada' = m
 			mode: import
 			source =
-					// f_PlanPCPCarvao — planejamento diário de puxada de carvão enviado pelo PCP por e-mail.
-					// O Power Automate grava cada e-mail "Planejamento de Expedição de Carvão - dd/mm" na tabela
-					// tbPlanPCP do arquivo "Planejamento PCP Carvao.xlsx" (pasta Indicadores › Planejamento PCP).
-					// Se o arquivo não for achado, o erro lista as pastas/arquivos que existem, para corrigir o nome.
-					// Uma linha por dia x UPC x destino (RRP/CMG), em m³.
+					// f_GestaoPuxada — planejado PCP x planejado Log x realizado, por dia (quadro "GESTÃO DE TRANSPORTE DE CARVÃO").
+					// Mês atual: aba "Gestão de Puxada" da planilha de planejamento puxada (stg_Puxada).
+					// Histórico: planilhas "Gestao Puxada AAAA.xlsx" da pasta Indicadores › "Gestão de Puxada Log x Pcp"
+					// (todas as abas que tiverem o cabeçalho Data / Plan PCP; anos novos entram sozinhos).
+					// Quando o mesmo dia aparece nas duas, vale a aba "Gestão de Puxada".
+					// Uma linha por dia, em m³ (a planilha mostra mil m³: 2,15 = 2.150 m³; valores < 100 são multiplicados por 1.000).
 					let
-					    // mesma ligação de nomes usada em d_UPC_Map (o PCP usa nomes curtos: "Lageado", "Móvel"...)
-					    Mapa     = {
-					                   {"OURO VERDE",      "UPC OURO VERDE"},
-					                   {"MATA VERDE",      "UPC MATA VERDE"},
-					                   {"VERDE MAR",       "UPC VERDE MAR"},
-					                   {"LAJEADO",         "UPC LAGEADO"},
-					                   {"LAGEADO",         "UPC LAGEADO"},
-					                   {"NOVA DA MATA",    "UPC NOVA DA MATA"},
-					                   {"CABECEIRA FUNDA", "UPC CABECEIRA FUNDA"},
-					                   {"ÁGUA LIMPA",      "UPC ÁGUA LIMPA"},
-					                   {"AGUA LIMPA",      "UPC ÁGUA LIMPA"},
-					                   {"MÓVEL",           "UPC MÓVEL 1"},
-					                   {"MOVEL",           "UPC MÓVEL 1"},
-					                   {"BOM FUTURO",      "UPC BOM FUTURO"},
-					                   {"LOBO",            "UPC LOBO"},
-					                   {"SÃO JOÃO",        "UPC SÃO JOÃO"},
-					                   {"MANGABA",         "UPC MANGABA"},
-					                   {"AGROBUSINESS",    "UPC AGROBUSINESS"},
-					                   {"DOURAFORTE",      "UPC DOURAFORTE"},
-					                   {"FGMG",            "UPC FGMG"},
-					                   {"GERDAU",          "UPC GERDAU"}
-					               },
-					    // procura o arquivo sem exigir o nome exato: ignora maiúsculas, acentos e espaços extras
-					    // (pasta "Planejamento PCP" e arquivo "Planejamento PCP Carvao.xlsx" ou "...Carvão.xlsx")
-					    Normal   = (t as text) as text =>
+					    Normal   = (t as any) as text =>
 					                   List.Accumulate(
 					                       {{"á","a"},{"à","a"},{"ã","a"},{"â","a"},{"é","e"},{"ê","e"},{"í","i"},
 					                        {"ó","o"},{"ô","o"},{"õ","o"},{"ú","u"},{"ç","c"},{"  "," "}},
-					                       Text.Lower(Text.Trim(t)),
+					                       Text.Lower(Text.Trim(Text.From(t))),
 					                       (acc, par) => Text.Replace(acc, par{0}, par{1})),
+					    Meses    = [jan = 1, fev = 2, mar = 3, abr = 4, mai = 5, jun = 6,
+					                jul = 7, ago = 8, set = 9, out = 10, nov = 11, dez = 12],
+					    // datas vêm como data do Excel; se vierem como texto ("01/out", "01/10/2026"), converte
+					    ParaData = (v as any, ano as number) as nullable date =>
+					                   if v is date or v is datetime then Date.From(v)
+					                   else if v is number then (if v > 40000 and v < 80000 then Date.From(v) else null)
+					                   else if v is text then
+					                       let
+					                           p   = Text.Split(Normal(v), "/"),
+					                           dia = try Number.From(p{0}) otherwise null,
+					                           mes = if List.Count(p) < 2 then null
+					                                 else Record.FieldOrDefault(Meses, Text.Start(p{1}, 3),
+					                                          try Number.From(p{1}) otherwise null),
+					                           a   = if List.Count(p) >= 3 then (try Number.From(p{2}) otherwise ano) else ano
+					                       in
+					                           if dia <> null and mes <> null then (try #date(if a < 100 then 2000 + a else a, mes, dia) otherwise null) else null
+					                   else null,
+					    Num      = (v as any) as nullable number =>
+					                   if v is number then v
+					                   else if v is text then try Number.From(Text.Trim(v), "pt-BR") otherwise null
+					                   else null,
+					    MilM3    = (v as nullable number) as nullable number =>
+					                   if v = null then null else if Number.Abs(v) < 100 then v * 1000 else v,
+
+					    Campos   = {{"Plan PCP m³",   "plan pcp"},
+					                {"Plan Log m³",   "plan log"},
+					                {"Real Log m³",   "real log"},
+					                {"Veículos Plan", "veiculos plan"},
+					                {"Adicionais",    "adicionais"},
+					                {"Furos Log",     "furos log"},
+					                {"Furos PCP",     "furos pcp"},
+					                {"MDC Entregue",  "mdc entregue"}},
+
+					    // lê uma aba no layout do quadro: acha a(s) linha(s) de cabeçalho e pega os dias abaixo
+					    LerAba   = (t as table, ano as number) as table =>
+					        let
+					            SemErro = Table.ReplaceErrorValues(t, List.Transform(Table.ColumnNames(t), each {_, null})),
+					            Linhas  = List.Buffer(Table.ToRows(SemErro)),
+					            Norm    = List.Buffer(List.Transform(Linhas, each List.Transform(_, (c) => if c = null then "" else Normal(c)))),
+					            Cabecs  = List.Select(List.Positions(Norm), (i) =>
+					                          List.Contains(Norm{i}, "data") and List.Contains(Norm{i}, "plan pcp")),
+					            Linha   = (i as number) as nullable list =>
+					                let
+					                    h    = List.Last(List.Select(Cabecs, (c) => c < i), null),
+					                    cab  = if h = null then null else Norm{h},
+					                    r    = Linhas{i},
+					                    col  = (nome as text) => List.PositionOf(cab, nome),
+					                    data = if h = null then null else ParaData(r{col("data")}, ano),
+					                    vals = List.Transform(Campos, (c) =>
+					                               let k = col(c{1}), v = if k >= 0 then Num(r{k}) else null
+					                               in if Text.EndsWith(c{0}, "m³") then MilM3(v) else v)
+					                in
+					                    if data = null then null else {data} & vals,
+					            Dias    = List.RemoveNulls(List.Transform(List.Positions(Linhas), Linha))
+					        in
+					            #table({"Data"} & List.Transform(Campos, each _{0}), Dias),
+
+					    // ---- mês atual: aba "Gestão de Puxada" da planilha de planejamento puxada
+					    AbaAtual = List.First(List.Select(Table.ToRecords(stg_Puxada),
+					                   each [Kind] = "Sheet" and Normal([Item]) = "gestao de puxada"), null),
+					    Atual    = if AbaAtual = null then
+					                   error "Aba ""Gestão de Puxada"" não encontrada na planilha de puxada. Abas: "
+					                         & Text.Combine(Table.SelectRows(stg_Puxada, each [Kind] = "Sheet")[Item], " | ")
+					               else Table.AddColumn(LerAba(AbaAtual[Data], Date.Year(DateTime.LocalNow())),
+					                                    "Origem", each "Gestão de Puxada", type text),
+
+					    // ---- histórico: Indicadores › Gestão de Puxada Log x Pcp › Gestao Puxada AAAA.xlsx
 					    Indic    = fnPastaSP(
 					                   pSiteLog,
 					                   {"Shared Documents", "Campo Grande", "4. Carvão", "Programação de Expedição", "Indicadores"}
 					               ),
-					    PastaPCP = Table.SelectRows(Indic, each [Content] is table
-					                                           and Text.Contains(Normal([Name]), "planejamento pcp")),
-					    // se a pasta "Planejamento PCP" não aparecer, procura o arquivo em todas as subpastas de Indicadores
-					    Subpastas = Table.SelectRows(Indic, each [Content] is table),
-					    Arqs     = Table.Combine(
-					                   List.Transform(
-					                       {Indic} & (if Table.IsEmpty(PastaPCP) then Subpastas[Content] else PastaPCP[Content]),
-					                       each Table.SelectRows(_, (r) => not (r[Content] is table)))),
-					    Planilhas = Table.Sort(
-					                   Table.SelectRows(Arqs, each [Extension] = ".xlsx"
-					                                          and not Text.StartsWith([Name], "~$")
-					                                          and Text.StartsWith(Normal([Name]), "planejamento pcp carv")),
-					                   {{"Date modified", Order.Descending}}),
-					    Arquivo  = if Table.IsEmpty(Planilhas) then
-					                   error "Arquivo ""Planejamento PCP Carvao.xlsx"" não encontrado em Indicadores nem nas subpastas. "
-					                         & "Subpastas: " & Text.Combine(Subpastas[Name], " | ")
-					               else Planilhas{0}[Content],
-					    Pasta    = Excel.Workbook(Arquivo, null, true),
-					    Tabela   = Pasta{[Item = "tbPlanPCP", Kind = "Table"]}[Data],
-					    Datas    = Table.TransformColumns(Tabela, {{"Data", each
-					                   if _ is number then Date.From(_)                       // série do Excel
-					                   else if _ is date or _ is datetime then Date.From(_)
-					                   else Date.FromText(Text.Start(Text.From(_), 10), [Format = "yyyy-MM-dd"]), type date}}),
-					    Tipado   = Table.TransformColumnTypes(Datas, {{"UPC", type text}, {"Destino", type text}, {"Planejado m3", type number}}),
-					    Validas  = Table.SelectRows(Tipado, each [Data] <> null and [UPC] <> null and [#"Planejado m3"] <> null),
-					    ComPart  = Table.AddColumn(Validas, "UPC Partição", each
-					                   let
-					                       u   = Text.Upper([UPC]),
-					                       hit = List.First(List.Select(Mapa, (p) => Text.Contains(u, p{0})), null)
-					                   in
-					                       if hit <> null then hit{1}
-					                       else Text.Trim(Text.Upper(Text.BeforeDelimiter([UPC], "("))),   // TERCEIRO, IMPORTADO...
-					                   type text),
-					    Final    = Table.RenameColumns(
-					                   Table.SelectColumns(ComPart, {"Data", "UPC", "UPC Partição", "Destino", "Planejado m3"}),
-					                   {{"UPC", "UPC (e-mail)"}, {"Destino", "DESTINO"}, {"Planejado m3", "Planejado m³"}})
+					    PastaHist = Table.SelectRows(Indic, each [Content] is table
+					                                            and Text.Contains(Normal([Name]), "gestao de puxada")),
+					    Arquivos = if Table.IsEmpty(PastaHist) then
+					                   error "Pasta ""Gestão de Puxada Log x Pcp"" não encontrada em Indicadores. Pastas: "
+					                         & Text.Combine(Table.SelectRows(Indic, each [Content] is table)[Name], " | ")
+					               else Table.SelectRows(PastaHist{0}[Content], each
+					                        not ([Content] is table)
+					                        and [Extension] = ".xlsx"
+					                        and not Text.StartsWith([Name], "~$")
+					                        and Text.Contains(Normal([Name]), "puxada")),
+					    ComAno   = Table.AddColumn(Arquivos, "Ano",
+					                   each try Number.From(Text.Start(Text.Select([Name], {"0".."9"}), 4)) otherwise null),
+					    AnoOk    = Table.SelectRows(ComAno, each [Ano] is number and [Ano] > 2000),
+					    Lidos    = List.Transform(Table.ToRecords(AnoOk), (f) =>
+					                   Table.Combine(
+					                       {#table({"Data"} & List.Transform(Campos, each _{0}), {})} &
+					                       List.Transform(
+					                           Table.SelectRows(Excel.Workbook(f[Content], false, true), each [Kind] = "Sheet")[Data],
+					                           each LerAba(_, f[Ano])))),
+					    Hist0    = Table.Combine({#table({"Data"} & List.Transform(Campos, each _{0}), {})} & Lidos),
+					    // dia repetido em mais de uma aba do histórico: fica a primeira ocorrência
+					    Hist1    = Table.Distinct(Table.SelectRows(Hist0, each [#"Plan PCP m³"] <> null or [#"Real Log m³"] <> null), {"Data"}),
+					    DiasAtual = List.Buffer(Atual[Data]),
+					    Hist     = Table.AddColumn(Table.SelectRows(Hist1, each not List.Contains(DiasAtual, [Data])),
+					                   "Origem", each "Histórico", type text),
+
+					    Junta    = Table.Combine({Atual, Hist}),
+					    // dias sem nada lançado (resto do mês, linhas com 0) ficam de fora
+					    ComDados = Table.SelectRows(Junta, each
+					                   List.AnyTrue(List.Transform({[#"Plan PCP m³"], [#"Plan Log m³"], [#"Real Log m³"], [#"Veículos Plan"]},
+					                                               (v) => v <> null and v <> 0))),
+					    Tipado   = Table.TransformColumnTypes(ComDados, {
+					                   {"Data", type date}, {"Plan PCP m³", type number}, {"Plan Log m³", type number},
+					                   {"Real Log m³", type number}, {"Veículos Plan", type number}, {"Adicionais", type number},
+					                   {"Furos Log", type number}, {"Furos PCP", type number}, {"MDC Entregue", type number},
+					                   {"Origem", type text}}),
+					    Final    = Table.Sort(Tipado, {{"Data", Order.Ascending}})
 					in
 					    Final
 
@@ -315,16 +397,14 @@ createOrReplace
 			mode: import
 			source =
 					// d_UPC_Carvao — uma linha por UPC da partição (com o Tipo mais recente: Própria/Contrato),
-					// mais as UPCs da base de puxada e do planejamento do PCP que não estão na partição.
+					// mais as UPCs da base de puxada que não estão na partição.
 					let
 					    DaMeta = Table.Buffer(Table.Sort(
 					                 Table.SelectColumns(f_MetaCarvao, {"UPC Partição", "Tipo", "Mês"}),
 					                 {{"Mês", Order.Descending}})),
 					    Unicas = Table.Distinct(Table.SelectColumns(DaMeta, {"UPC Partição", "Tipo"}), {"UPC Partição"}),
 					    DoMapa = Table.SelectRows(
-					                 Table.Distinct(Table.Combine({
-					                     Table.SelectColumns(d_UPC_Map, {"UPC Partição"}),
-					                     Table.SelectColumns(f_PlanPCPCarvao, {"UPC Partição"})})),
+					                 Table.Distinct(Table.SelectColumns(d_UPC_Map, {"UPC Partição"})),
 					                 each not List.Contains(Unicas[UPC Partição], [UPC Partição])),
 					    Extras = Table.AddColumn(DoMapa, "Tipo", each "Sem partição", type text),
 					    Final  = Table.TransformColumnTypes(Table.Combine({Unicas, Extras}),
@@ -344,10 +424,10 @@ createOrReplace
 				    )
 				VAR _meta =
 				    CALCULATE ( SUM ( f_MetaCarvao[Meta m³] ), TREATAS ( _meses, f_MetaCarvao[Mês] ) )
-				-- sem meta na partição: 0 quando existe carga programada ou planejamento do PCP
+				-- sem meta na partição: 0 quando existe carga programada
 				-- (vazio só quando não há nada, para não criar linhas sem dados nas tabelas)
 				VAR _temDados =
-				    NOT ISEMPTY ( f_basePlan ) || NOT ISEMPTY ( f_PlanPCPCarvao )
+				    NOT ISEMPTY ( f_basePlan )
 				RETURN
 				    IF ( ISBLANK ( _meta ), IF ( _temDados, 0 ), _meta )
 				```
@@ -757,54 +837,127 @@ createOrReplace
 			formatString: 0.00%
 			lineageTag: beff9ae0-c600-4b4c-9310-f99866d28e6b
 
-		measure '_Início PCP' = ```
-				-- data a partir da qual as contas do PCP valem (planejado, realizado, furo, compensado, acumulados)
-				DATE ( 2026, 10, 8 )
+		measure '_Sem Recorte UPC' = ```
+				-- TRUE quando não há filtro de UPC, destino ou transportador (o planejado do PCP é só o total do dia)
+				NOT (
+				    ISFILTERED ( d_UPC_Carvao ) || ISFILTERED ( d_UPC_Map ) || ISFILTERED ( d_UPC )
+				        || ISFILTERED ( d_Destino ) || ISFILTERED ( d_Transportador )
+				        || ISFILTERED ( f_basePlan[UPC] ) || ISFILTERED ( f_basePlan[DESTINO] )
+				)
 				```
-			formatString: dd/mm/yyyy
 			isHidden
-			lineageTag: ef7cfa9a-7c45-4745-b189-80f1b875cbd1
+			lineageTag: ff01550c-facc-47ee-832c-2ad8205b19da
 
 		measure 'Planejado PCP (m³)' = ```
-				VAR _ini = [_Início PCP]
-				RETURN
-				    CALCULATE ( SUM ( f_PlanPCPCarvao[Planejado m³] ), KEEPFILTERS ( f_PlanPCPCarvao[Data] >= _ini ) )
+				-- planejado do PCP no período filtrado (aba "Gestão de Puxada" + histórico)
+				IF ( [_Sem Recorte UPC], SUM ( f_GestaoPuxada[Plan PCP m³] ) )
 				```
 			formatString: #,0
 			lineageTag: 4ec48ccc-89d3-42c5-abff-7603a459d5db
 
+		measure 'Planejado Log (m³)' = ```
+				-- planejado da logística no período filtrado
+				IF ( [_Sem Recorte UPC], SUM ( f_GestaoPuxada[Plan Log m³] ) )
+				```
+			formatString: #,0
+			lineageTag: 1d45bd86-f513-41e1-a302-7013821090f4
+
+		measure 'Veículos Planejados' = ```
+				IF ( [_Sem Recorte UPC], SUM ( f_GestaoPuxada[Veículos Plan] ) )
+				```
+			formatString: #,0
+			lineageTag: 3a727a16-6f45-483d-ab12-6a123864c454
+
+		measure 'Veículos Adicionais' = ```
+				IF ( [_Sem Recorte UPC], SUM ( f_GestaoPuxada[Adicionais] ) )
+				```
+			formatString: #,0
+			lineageTag: dae2ed38-0a20-41c2-a5bc-ee4036ddb122
+
+		measure 'Furos Log (veículos)' = ```
+				IF ( [_Sem Recorte UPC], SUM ( f_GestaoPuxada[Furos Log] ) )
+				```
+			formatString: #,0
+			lineageTag: a682df8a-7367-488f-af10-bb003704327b
+
+		measure 'Furos PCP (veículos)' = ```
+				IF ( [_Sem Recorte UPC], SUM ( f_GestaoPuxada[Furos PCP] ) )
+				```
+			formatString: #,0
+			lineageTag: ea4264d1-7773-4065-a7a7-1d3671764caa
+
+		measure 'MDC Entregue' = ```
+				IF ( [_Sem Recorte UPC], SUM ( f_GestaoPuxada[MDC Entregue] ) )
+				```
+			formatString: #,0.00
+			lineageTag: 9dfff343-978f-4aa6-bad7-c8d1e10ae274
+
+		measure '% Furo Veículos' = ```
+				-- igual à planilha: furos da logística / (veículos planejados + adicionais)
+				DIVIDE ( [Furos Log (veículos)], [Veículos Planejados] + [Veículos Adicionais] )
+				```
+			formatString: 0%
+			lineageTag: 48b0cfeb-2ae0-4ad2-be8e-34b4f6d265b0
+
 		measure 'Planejado PCP Acumulado (m³)' = ```
+				-- planejado do PCP somado do dia 1 do mês até hoje (hoje entra; amanhã soma os dois dias, e assim por diante)
 				VAR _fim = MIN ( MAX ( d_Calendario[Date] ), TODAY () )
-				VAR _ini = MAX ( DATE ( YEAR ( _fim ), MONTH ( _fim ), 1 ), [_Início PCP] )
+				VAR _ini = DATE ( YEAR ( _fim ), MONTH ( _fim ), 1 )
+				VAR _dias =
+				    CALCULATETABLE (
+				        VALUES ( f_GestaoPuxada[Data] ),
+				        REMOVEFILTERS ( d_Calendario ),
+				        DATESBETWEEN ( d_Calendario[Date], _ini, _fim ),
+				        NOT ISBLANK ( f_GestaoPuxada[Plan PCP m³] )
+				    )
 				RETURN
 				    IF (
-				        _ini <= _fim,
-				        CALCULATE (
-				            [Planejado PCP (m³)],
-				            REMOVEFILTERS ( d_Calendario ),
-				            DATESBETWEEN ( d_Calendario[Date], _ini, _fim )
-				        )
+				        [_Sem Recorte UPC],
+				        CALCULATE ( [Planejado PCP (m³)], REMOVEFILTERS ( d_Calendario ), TREATAS ( _dias, d_Calendario[Date] ) )
 				    )
 				```
 			formatString: #,0
 			lineageTag: e9e3a59b-25ac-42da-988f-d1b47d98475c
 
 		measure 'Carregado Acumulado PCP (m³)' = ```
-				-- carregado (OK) no mesmo período do planejado acumulado, incluindo o que já carregou hoje
+				-- carregado (OK) nos mesmos dias do planejado acumulado, incluindo o que já carregou hoje
 				VAR _fim = MIN ( MAX ( d_Calendario[Date] ), TODAY () )
-				VAR _ini = MAX ( DATE ( YEAR ( _fim ), MONTH ( _fim ), 1 ), [_Início PCP] )
+				VAR _ini = DATE ( YEAR ( _fim ), MONTH ( _fim ), 1 )
+				VAR _dias =
+				    CALCULATETABLE (
+				        VALUES ( f_GestaoPuxada[Data] ),
+				        REMOVEFILTERS ( d_Calendario ),
+				        DATESBETWEEN ( d_Calendario[Date], _ini, _fim ),
+				        NOT ISBLANK ( f_GestaoPuxada[Plan PCP m³] )
+				    )
 				RETURN
 				    IF (
-				        _ini <= _fim,
-				        CALCULATE (
-				            [Carregado Carvão (m³)],
-				            REMOVEFILTERS ( d_Calendario ),
-				            DATESBETWEEN ( d_Calendario[Date], _ini, _fim )
-				        )
+				        [_Sem Recorte UPC],
+				        CALCULATE ( [Carregado Carvão (m³)], REMOVEFILTERS ( d_Calendario ), TREATAS ( _dias, d_Calendario[Date] ) )
 				    )
 				```
 			formatString: #,0
 			lineageTag: 6638ea45-c9d2-4275-87b8-561eb720e955
+
+		measure 'Planejado Log Acumulado (m³)' = ```
+				-- planejado da logística nos mesmos dias do planejado acumulado do PCP
+				VAR _fim = MIN ( MAX ( d_Calendario[Date] ), TODAY () )
+				VAR _ini = DATE ( YEAR ( _fim ), MONTH ( _fim ), 1 )
+				VAR _dias =
+				    CALCULATETABLE (
+				        VALUES ( f_GestaoPuxada[Data] ),
+				        REMOVEFILTERS ( d_Calendario ),
+				        DATESBETWEEN ( d_Calendario[Date], _ini, _fim ),
+				        NOT ISBLANK ( f_GestaoPuxada[Plan PCP m³] )
+				    )
+				RETURN
+				    IF (
+				        [_Sem Recorte UPC],
+				        CALCULATE ( [Planejado Log (m³)], REMOVEFILTERS ( d_Calendario ), TREATAS ( _dias, d_Calendario[Date] ) )
+				    )
+				```
+			formatString: #,0
+			lineageTag: 5b25f9be-15be-4440-bdbf-9c9c73f423f1
 
 		measure 'Desvio PCP (m³)' = ```
 				-- realizado acumulado - planejado acumulado (= compensado - furo)
@@ -819,49 +972,69 @@ createOrReplace
 			formatString: 0.00%
 			lineageTag: dae4a960-d64f-49ce-95bd-2c96707a5b50
 
+		measure '% Furo PCP x Log' = ```
+				-- igual à planilha: realizado / planejado PCP - 1 (negativo = carregou menos que o PCP)
+				VAR _p = [Planejado PCP Acumulado (m³)]
+				RETURN IF ( _p > 0, DIVIDE ( [Carregado Acumulado PCP (m³)], _p ) - 1 )
+				```
+			formatString: +0.00%;-0.00%;0.00%
+			lineageTag: d9530992-19aa-42c8-a4bf-4d56401a5c33
+
+		measure '% Furo Log x Log' = ```
+				-- igual à planilha: realizado / planejado Log - 1
+				VAR _p = [Planejado Log Acumulado (m³)]
+				RETURN IF ( _p > 0, DIVIDE ( [Carregado Acumulado PCP (m³)], _p ) - 1 )
+				```
+			formatString: +0.00%;-0.00%;0.00%
+			lineageTag: 1d8a249a-1c63-40c6-ac74-d94ef075d615
+
 		measure 'Furo PCP (m³)' = ```
-				-- m³ planejados pelo PCP que não foram carregados no dia (planejado > realizado),
-				-- somando dia a dia por UPC e destino, de _Início PCP até hoje
+				-- m³ planejados pelo PCP que não foram carregados no dia (planejado > realizado), somando dia a dia no mês até hoje
 				VAR _fim = MIN ( MAX ( d_Calendario[Date] ), TODAY () )
-				VAR _ini = MAX ( DATE ( YEAR ( _fim ), MONTH ( _fim ), 1 ), [_Início PCP] )
+				VAR _ini = DATE ( YEAR ( _fim ), MONTH ( _fim ), 1 )
 				VAR _dias =
 				    CALCULATETABLE (
-				        VALUES ( d_Calendario[Date] ),
+				        VALUES ( f_GestaoPuxada[Data] ),
 				        REMOVEFILTERS ( d_Calendario ),
-				        DATESBETWEEN ( d_Calendario[Date], _ini, _fim )
+				        DATESBETWEEN ( d_Calendario[Date], _ini, _fim ),
+				        NOT ISBLANK ( f_GestaoPuxada[Plan PCP m³] )
 				    )
-				VAR _combos =
-				    CROSSJOIN ( _dias, VALUES ( d_UPC_Carvao[UPC Partição] ), VALUES ( d_Destino[DESTINO] ) )
 				RETURN
-				    SUMX (
-				        _combos,
-				        VAR _p = COALESCE ( [Planejado PCP (m³)], 0 )
-				        VAR _r = COALESCE ( [Carregado Carvão (m³)], 0 )
-				        RETURN MAX ( _p - _r, 0 )
+				    IF (
+				        [_Sem Recorte UPC],
+				        SUMX (
+				            _dias,
+				            VAR _d = f_GestaoPuxada[Data]
+				            VAR _p = CALCULATE ( SUM ( f_GestaoPuxada[Plan PCP m³] ), REMOVEFILTERS ( d_Calendario ), d_Calendario[Date] = _d )
+				            VAR _r = COALESCE ( CALCULATE ( [Carregado Carvão (m³)], REMOVEFILTERS ( d_Calendario ), d_Calendario[Date] = _d ), 0 )
+				            RETURN MAX ( _p - _r, 0 )
+				        )
 				    )
 				```
 			formatString: #,0
 			lineageTag: 424d82b8-eff1-4da7-bd83-9860adfbaff0
 
 		measure 'Furo Compensado PCP (m³)' = ```
-				-- m³ carregados acima do planejado do dia (realizado > planejado), por UPC e destino:
-				-- é o "furo compensado"
+				-- m³ carregados acima do planejado do PCP no dia (realizado > planejado): é o "furo compensado"
 				VAR _fim = MIN ( MAX ( d_Calendario[Date] ), TODAY () )
-				VAR _ini = MAX ( DATE ( YEAR ( _fim ), MONTH ( _fim ), 1 ), [_Início PCP] )
+				VAR _ini = DATE ( YEAR ( _fim ), MONTH ( _fim ), 1 )
 				VAR _dias =
 				    CALCULATETABLE (
-				        VALUES ( d_Calendario[Date] ),
+				        VALUES ( f_GestaoPuxada[Data] ),
 				        REMOVEFILTERS ( d_Calendario ),
-				        DATESBETWEEN ( d_Calendario[Date], _ini, _fim )
+				        DATESBETWEEN ( d_Calendario[Date], _ini, _fim ),
+				        NOT ISBLANK ( f_GestaoPuxada[Plan PCP m³] )
 				    )
-				VAR _combos =
-				    CROSSJOIN ( _dias, VALUES ( d_UPC_Carvao[UPC Partição] ), VALUES ( d_Destino[DESTINO] ) )
 				RETURN
-				    SUMX (
-				        _combos,
-				        VAR _p = COALESCE ( [Planejado PCP (m³)], 0 )
-				        VAR _r = COALESCE ( [Carregado Carvão (m³)], 0 )
-				        RETURN MAX ( _r - _p, 0 )
+				    IF (
+				        [_Sem Recorte UPC],
+				        SUMX (
+				            _dias,
+				            VAR _d = f_GestaoPuxada[Data]
+				            VAR _p = CALCULATE ( SUM ( f_GestaoPuxada[Plan PCP m³] ), REMOVEFILTERS ( d_Calendario ), d_Calendario[Date] = _d )
+				            VAR _r = COALESCE ( CALCULATE ( [Carregado Carvão (m³)], REMOVEFILTERS ( d_Calendario ), d_Calendario[Date] = _d ), 0 )
+				            RETURN MAX ( _r - _p, 0 )
+				        )
 				    )
 				```
 			formatString: #,0
@@ -908,14 +1081,6 @@ createOrReplace
 		fromColumn: f_MetaCarvao.DESTINO
 		toColumn: d_Destino.DESTINO
 
-	relationship ac01cb26-56e4-4af1-bcef-db7a1d2a36d2
-		fromColumn: f_PlanPCPCarvao.'UPC Partição'
-		toColumn: d_UPC_Carvao.'UPC Partição'
-
-	relationship 2e2f29ca-a40b-46e1-9875-d894e7b246fc
-		fromColumn: f_PlanPCPCarvao.DESTINO
-		toColumn: d_Destino.DESTINO
-
-	relationship 68745a74-9980-4c12-81ac-e1f93bb89736
-		fromColumn: f_PlanPCPCarvao.Data
+	relationship a9cebaa5-c153-4aa8-b304-016d303a79e2
+		fromColumn: f_GestaoPuxada.Data
 		toColumn: d_Calendario.Date
