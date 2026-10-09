@@ -348,14 +348,14 @@ createOrReplace
 					                   pSiteLog,
 					                   {"Shared Documents", "Campo Grande", "4. Carvão", "Programação de Expedição", "Indicadores"}
 					               ),
-					    PastaHist = Table.SelectRows(Indic, each [Content] is table
-					                                            and Text.Contains(Normal([Name]), "gestao de puxada")),
+					    // IMPORTANTE para a velocidade: filtrar pelo NOME/EXTENSÃO primeiro e nunca testar [Content] em todas
+					    // as linhas. Testar "[Content] is table" faz o SharePoint abrir cada subpasta (e cada arquivo) de Indicadores.
+					    PastaHist = Table.SelectRows(Indic, each ([Extension] = "" or [Extension] = null) and Text.Contains(Normal([Name]), "gestao de puxada")),
 					    Arquivos = if Table.IsEmpty(PastaHist) then
-					                   error "Pasta ""Gestão de Puxada Log x Pcp"" não encontrada em Indicadores. Pastas: "
-					                         & Text.Combine(Table.SelectRows(Indic, each [Content] is table)[Name], " | ")
+					                   error "Pasta ""Gestão de Puxada Log x Pcp"" não encontrada em Indicadores. Itens: "
+					                         & Text.Combine(List.FirstN(Indic[Name], 40), " | ")
 					               else Table.SelectRows(PastaHist{0}[Content], each
-					                        not ([Content] is table)
-					                        and [Extension] = ".xlsx"
+					                        [Extension] = ".xlsx"
 					                        and not Text.StartsWith([Name], "~$")
 					                        and Text.Contains(Normal([Name]), "puxada")),
 					    ComAno   = Table.AddColumn(Arquivos, "Ano",
@@ -1091,6 +1091,6 @@ createOrReplace
 		fromColumn: f_MetaCarvao.DESTINO
 		toColumn: d_Destino.DESTINO
 
-	relationship 361057e3-73f9-49f8-a8fa-2f08c299d7cd
+	relationship 2cbe79e2-64bd-4d08-a073-760348aa37f2
 		fromColumn: f_GestaoPuxada.Data
 		toColumn: d_Calendario.Date

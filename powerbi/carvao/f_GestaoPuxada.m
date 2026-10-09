@@ -92,14 +92,14 @@ let
                    pSiteLog,
                    {"Shared Documents", "Campo Grande", "4. Carvão", "Programação de Expedição", "Indicadores"}
                ),
-    PastaHist = Table.SelectRows(Indic, each [Content] is table
-                                            and Text.Contains(Normal([Name]), "gestao de puxada")),
+    // IMPORTANTE para a velocidade: filtrar pelo NOME/EXTENSÃO primeiro e nunca testar [Content] em todas
+    // as linhas. Testar "[Content] is table" faz o SharePoint abrir cada subpasta (e cada arquivo) de Indicadores.
+    PastaHist = Table.SelectRows(Indic, each ([Extension] = "" or [Extension] = null) and Text.Contains(Normal([Name]), "gestao de puxada")),
     Arquivos = if Table.IsEmpty(PastaHist) then
-                   error "Pasta ""Gestão de Puxada Log x Pcp"" não encontrada em Indicadores. Pastas: "
-                         & Text.Combine(Table.SelectRows(Indic, each [Content] is table)[Name], " | ")
+                   error "Pasta ""Gestão de Puxada Log x Pcp"" não encontrada em Indicadores. Itens: "
+                         & Text.Combine(List.FirstN(Indic[Name], 40), " | ")
                else Table.SelectRows(PastaHist{0}[Content], each
-                        not ([Content] is table)
-                        and [Extension] = ".xlsx"
+                        [Extension] = ".xlsx"
                         and not Text.StartsWith([Name], "~$")
                         and Text.Contains(Normal([Name]), "puxada")),
     ComAno   = Table.AddColumn(Arquivos, "Ano",
