@@ -156,15 +156,21 @@ VAR _txtNP = IF ( _pNaoN > 0, FORMAT ( _pNaoN, "#,##0" ), "&#10003; 0" )
 VAR _sWrap  = "display:flex;gap:12px;align-items:stretch;font-family:Segoe UI,Arial,sans-serif;background:transparent;margin:0;padding:0"
 VAR _sCard  = "flex:1;min-width:0;background:#FFFFFF;border:1px solid #E7E5DD;border-radius:12px;padding:14px 14px;box-sizing:border-box"
 VAR _sIcon  = "width:36px;height:36px;border-radius:9px;background:#F1F4F2;display:flex;align-items:center;justify-content:center;flex:none"
-VAR _sTit   = "font-size:15px;font-weight:700;color:#284D38;letter-spacing:.4px;line-height:1.2"
-VAR _sSub   = "font-size:11.5px;color:#9A9892;margin-top:2px"
-VAR _sKpiLb = "font-size:12px;font-weight:700;color:#3D3D3A;letter-spacing:.5px;margin-top:12px"
-VAR _sKpiVl = "font-size:38px;font-weight:600;color:#131313;line-height:1.08;margin-top:2px"
-VAR _sHint  = "font-size:10.5px;color:#A5A39C;margin:7px 0 6px"
 VAR _sGrid  = "display:grid;grid-template-columns:1fr 1fr;gap:6px"
 VAR _sCellL = "font-size:10.5px;font-weight:700;color:#6B6A65;letter-spacing:.3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"
 VAR _sCellV = "font-size:19px;font-weight:600;color:#131313;line-height:1.15;margin-top:2px"
 VAR _sCell  = "border:1px solid #EDEBE3;border-radius:8px;padding:5px 10px;min-width:0"
+VAR _sHead  = "background:#284D38;border-radius:10px;padding:11px 12px 10px;margin-bottom:8px"
+VAR _sBody  = "display:flex;gap:10px;align-items:center;margin-top:8px"
+VAR _sTitH  = "font-size:15px;font-weight:700;color:#FFFFFF;letter-spacing:.4px;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"
+VAR _sSubH  = "font-size:11.5px;color:#C9DDD0;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"
+VAR _sKpiLbH = "font-size:11px;font-weight:700;color:#E3EEE7;letter-spacing:.4px;line-height:1.25"
+VAR _sKpiVlH = "font-size:32px;font-weight:600;color:#FFFFFF;line-height:1.08;margin-top:3px;white-space:nowrap"
+VAR _sHintH = "font-size:10.5px;color:#A9C7B4;margin-top:4px"
+VAR _sSide  = "display:flex;flex-direction:column;gap:6px;flex:none;width:40%;max-width:130px"
+VAR _sPill  = "background:#FFFFFF;border:1px solid #FFFFFF;border-radius:8px;padding:4px 8px;min-width:0"
+VAR _sPillL = "font-size:9.5px;font-weight:700;color:#6B6A65;letter-spacing:.3px;white-space:nowrap"
+VAR _sPillV = "font-size:17px;font-weight:700;color:#131313;line-height:1.15;margin-top:1px;white-space:nowrap"
 
 -- =========================================================
 -- Ícones
@@ -181,19 +187,27 @@ VAR _icMP   = _svg0 & "<path d='M2.5 19.5l6.2-10.5 3.8 6 2.6-4.2 6.4 8.7z'/></sv
 -- =========================================================
 VAR _cardGusa =
     "<div style='" & _sCard & "'>" &
-        "<div style='display:flex;align-items:center;gap:10px'>" &
-            "<div style='" & _sIcon & "'>" & _icGusa & "</div>" &
-            "<div style='min-width:0'><div style='" & _sTit & "'>FERRO GUSA</div>" &
-            "<div style='" & _sSub & "'>Expedi&#231;&#227;o &#183; toneladas</div></div>" &
+        "<div style='" & _sHead & "'>" &
+                "<div style='display:flex;align-items:center;gap:10px'>" &
+                    "<div style='" & _sIcon & "'>" & _icGusa & "</div>" &
+                    "<div style='min-width:0'><div style='" & _sTitH & "'>FERRO GUSA</div>" &
+                    "<div style='" & _sSubH & "'>Expedi&#231;&#227;o &#183; toneladas</div></div>" &
+                "</div>" &
+            "<div style='" & _sBody & "'>" &
+            "<div style='flex:1;min-width:0'>" &
+                "<div style='" & _sKpiLbH & "'>EXPEDIDO NO M&#202;S (t)</div>" &
+                "<div style='" & _sKpiVlH & "'>" & FORMAT ( _gExp, "#,##0" ) & "</div>" &
+                "<div style='" & _sHintH & "'>Realizado x meta do m&#234;s</div>" &
+            "</div>" &
+            "<div style='" & _sSide & "'>" &
+                "<div style='" & _sPill & "'><div style='" & _sPillL & "'>% ALCANCE</div><div style='" & _sPillV & "'>" & FORMAT ( _gAtin, "0.00%" ) & "</div></div>" &
+                "<div class='" & _clsRG & "' style='" & _sPill & "'><div style='" & _sPillL & "'>% RITMO</div><div style='" & _sPillV & ";color:" & _corRG & "'>" & FORMAT ( _gRit, "0.00%" ) & "</div></div>" &
+            "</div>" &
+            "</div>" &
         "</div>" &
-        "<div style='" & _sKpiLb & "'>EXPEDIDO NO M&#202;S (t)</div>" &
-        "<div style='" & _sKpiVl & "'>" & FORMAT ( _gExp, "#,##0" ) & "</div>" &
-        "<div style='" & _sHint & "'>Realizado x meta do m&#234;s</div>" &
         "<div style='" & _sGrid & "'>" &
             "<div style='" & _sCell & "'><div style='" & _sCellL & "'>META (t)</div><div style='" & _sCellV & "'>" & FORMAT ( _gMeta, "#,##0" ) & "</div></div>" &
-            "<div style='" & _sCell & "'><div style='" & _sCellL & "'>% ALCANCE</div><div style='" & _sCellV & "'>" & FORMAT ( _gAtin, "0.00%" ) & "</div></div>" &
             "<div style='" & _sCell & "'><div style='" & _sCellL & "'>RITMO (TEND&#202;NCIA)</div><div style='" & _sCellV & "'>" & FORMAT ( _gTend, "#,##0" ) & "</div></div>" &
-            "<div class='" & _clsRG & "' style='" & _sCell & "'><div style='" & _sCellL & "'>% RITMO</div><div style='" & _sCellV & ";color:" & _corRG & "'>" & FORMAT ( _gRit, "0.00%" ) & "</div></div>" &
             "<div style='" & _sCell & "'><div style='" & _sCellL & "'>PREVIS&#195;O CONCLUS&#195;O</div><div style='" & _sCellV & "'>" & FORMAT ( _gPrev, "dd/mm/yyyy" ) & "</div></div>" &
             "<div style='" & _sCell & "'><div style='" & _sCellL & "'>M&#201;DIA DI&#193;RIA (t)</div><div style='" & _sCellV & "'>" & FORMAT ( _gMed, "#,##0" ) & "</div></div>" &
             "<div style='" & _sCell & "'><div style='" & _sCellL & "'>M&#201;DIA NECESS&#193;RIA (t)</div><div style='" & _sCellV & "'>" & FORMAT ( _gNec, "#,##0" ) & "</div></div>" &
@@ -207,19 +221,27 @@ VAR _cardGusa =
 
 VAR _cardMin =
     "<div style='" & _sCard & "'>" &
-        "<div style='display:flex;align-items:center;gap:10px'>" &
-            "<div style='" & _sIcon & "'>" & _icMin & "</div>" &
-            "<div style='min-width:0'><div style='" & _sTit & "'>MIN&#201;RIO DE FERRO</div>" &
-            "<div style='" & _sSub & "'>Expedi&#231;&#227;o &#183; toneladas</div></div>" &
+        "<div style='" & _sHead & "'>" &
+                "<div style='display:flex;align-items:center;gap:10px'>" &
+                    "<div style='" & _sIcon & "'>" & _icMin & "</div>" &
+                    "<div style='min-width:0'><div style='" & _sTitH & "'>MIN&#201;RIO DE FERRO</div>" &
+                    "<div style='" & _sSubH & "'>Expedi&#231;&#227;o &#183; toneladas</div></div>" &
+                "</div>" &
+            "<div style='" & _sBody & "'>" &
+            "<div style='flex:1;min-width:0'>" &
+                "<div style='" & _sKpiLbH & "'>EXPEDIDO NO M&#202;S (t)</div>" &
+                "<div style='" & _sKpiVlH & "'>" & FORMAT ( _mExp, "#,##0" ) & "</div>" &
+                "<div style='" & _sHintH & "'>Realizado x meta do m&#234;s</div>" &
+            "</div>" &
+            "<div style='" & _sSide & "'>" &
+                "<div style='" & _sPill & "'><div style='" & _sPillL & "'>% ALCANCE</div><div style='" & _sPillV & "'>" & FORMAT ( _mAtin, "0.00%" ) & "</div></div>" &
+                "<div class='" & _clsRM & "' style='" & _sPill & "'><div style='" & _sPillL & "'>% RITMO</div><div style='" & _sPillV & ";color:" & _corRM & "'>" & FORMAT ( _mRit, "0.00%" ) & "</div></div>" &
+            "</div>" &
+            "</div>" &
         "</div>" &
-        "<div style='" & _sKpiLb & "'>EXPEDIDO NO M&#202;S (t)</div>" &
-        "<div style='" & _sKpiVl & "'>" & FORMAT ( _mExp, "#,##0" ) & "</div>" &
-        "<div style='" & _sHint & "'>Realizado x meta do m&#234;s</div>" &
         "<div style='" & _sGrid & "'>" &
             "<div style='" & _sCell & "'><div style='" & _sCellL & "'>META (t)</div><div style='" & _sCellV & "'>" & FORMAT ( _mMeta, "#,##0" ) & "</div></div>" &
-            "<div style='" & _sCell & "'><div style='" & _sCellL & "'>% ALCANCE</div><div style='" & _sCellV & "'>" & FORMAT ( _mAtin, "0.00%" ) & "</div></div>" &
             "<div style='" & _sCell & "'><div style='" & _sCellL & "'>RITMO (TEND&#202;NCIA)</div><div style='" & _sCellV & "'>" & FORMAT ( _mTend, "#,##0" ) & "</div></div>" &
-            "<div class='" & _clsRM & "' style='" & _sCell & "'><div style='" & _sCellL & "'>% RITMO</div><div style='" & _sCellV & ";color:" & _corRM & "'>" & FORMAT ( _mRit, "0.00%" ) & "</div></div>" &
             "<div style='" & _sCell & "'><div style='" & _sCellL & "'>PREVIS&#195;O CONCLUS&#195;O</div><div style='" & _sCellV & "'>" & FORMAT ( _mPrev, "dd/mm/yyyy" ) & "</div></div>" &
             "<div style='" & _sCell & "'><div style='" & _sCellL & "'>M&#201;DIA DI&#193;RIA (t)</div><div style='" & _sCellV & "'>" & FORMAT ( _mMed, "#,##0" ) & "</div></div>" &
             "<div style='" & _sCell & "'><div style='" & _sCellL & "'>M&#201;DIA NECESS&#193;RIA (t)</div><div style='" & _sCellV & "'>" & FORMAT ( _mNec, "#,##0" ) & "</div></div>" &
@@ -233,19 +255,27 @@ VAR _cardMin =
 
 VAR _cardCo =
     "<div style='" & _sCard & "'>" &
-        "<div style='display:flex;align-items:center;gap:10px'>" &
-            "<div style='" & _sIcon & "'>" & _icCo & "</div>" &
-            "<div style='min-width:0'><div style='" & _sTit & "'>CO PRODUTOS</div>" &
-            "<div style='" & _sSub & "'>Expedi&#231;&#227;o &#183; toneladas</div></div>" &
+        "<div style='" & _sHead & "'>" &
+                "<div style='display:flex;align-items:center;gap:10px'>" &
+                    "<div style='" & _sIcon & "'>" & _icCo & "</div>" &
+                    "<div style='min-width:0'><div style='" & _sTitH & "'>CO PRODUTOS</div>" &
+                    "<div style='" & _sSubH & "'>Expedi&#231;&#227;o &#183; toneladas</div></div>" &
+                "</div>" &
+            "<div style='" & _sBody & "'>" &
+            "<div style='flex:1;min-width:0'>" &
+                "<div style='" & _sKpiLbH & "'>EXPEDIDO NO M&#202;S (t)</div>" &
+                "<div style='" & _sKpiVlH & "'>" & FORMAT ( _cExp, "#,##0" ) & "</div>" &
+                "<div style='" & _sHintH & "'>Realizado x meta do m&#234;s</div>" &
+            "</div>" &
+            "<div style='" & _sSide & "'>" &
+                "<div style='" & _sPill & "'><div style='" & _sPillL & "'>% ALCANCE</div><div style='" & _sPillV & "'>" & FORMAT ( _cAtin, "0.00%" ) & "</div></div>" &
+                "<div class='" & _clsRC & "' style='" & _sPill & "'><div style='" & _sPillL & "'>% RITMO</div><div style='" & _sPillV & ";color:" & _corRC & "'>" & FORMAT ( _cRit, "0.00%" ) & "</div></div>" &
+            "</div>" &
+            "</div>" &
         "</div>" &
-        "<div style='" & _sKpiLb & "'>EXPEDIDO NO M&#202;S (t)</div>" &
-        "<div style='" & _sKpiVl & "'>" & FORMAT ( _cExp, "#,##0" ) & "</div>" &
-        "<div style='" & _sHint & "'>Realizado x meta do m&#234;s</div>" &
         "<div style='" & _sGrid & "'>" &
             "<div style='" & _sCell & "'><div style='" & _sCellL & "'>META (t)</div><div style='" & _sCellV & "'>" & FORMAT ( _cMeta, "#,##0" ) & "</div></div>" &
-            "<div style='" & _sCell & "'><div style='" & _sCellL & "'>% ALCANCE</div><div style='" & _sCellV & "'>" & FORMAT ( _cAtin, "0.00%" ) & "</div></div>" &
             "<div style='" & _sCell & "'><div style='" & _sCellL & "'>RITMO (TEND&#202;NCIA)</div><div style='" & _sCellV & "'>" & FORMAT ( _cTend, "#,##0" ) & "</div></div>" &
-            "<div class='" & _clsRC & "' style='" & _sCell & "'><div style='" & _sCellL & "'>% RITMO</div><div style='" & _sCellV & ";color:" & _corRC & "'>" & FORMAT ( _cRit, "0.00%" ) & "</div></div>" &
             "<div style='" & _sCell & "'><div style='" & _sCellL & "'>PREVIS&#195;O CONCLUS&#195;O</div><div style='" & _sCellV & "'>" & FORMAT ( _cPrev, "dd/mm/yyyy" ) & "</div></div>" &
             "<div style='" & _sCell & "'><div style='" & _sCellL & "'>M&#201;DIA DI&#193;RIA (t)</div><div style='" & _sCellV & "'>" & FORMAT ( _cMed, "#,##0" ) & "</div></div>" &
             "<div style='" & _sCell & "'><div style='" & _sCellL & "'>M&#201;DIA NECESS&#193;RIA (t)</div><div style='" & _sCellV & "'>" & FORMAT ( _cNec, "#,##0" ) & "</div></div>" &
@@ -259,19 +289,27 @@ VAR _cardCo =
 
 VAR _cardCarv =
     "<div style='" & _sCard & "'>" &
-        "<div style='display:flex;align-items:center;gap:10px'>" &
-            "<div style='" & _sIcon & "'>" & _icCarv & "</div>" &
-            "<div style='min-width:0'><div style='" & _sTit & "'>CARV&#195;O</div>" &
-            "<div style='" & _sSub & "'>Carregamento &#183; m&#179;</div></div>" &
+        "<div style='" & _sHead & "'>" &
+                "<div style='display:flex;align-items:center;gap:10px'>" &
+                    "<div style='" & _sIcon & "'>" & _icCarv & "</div>" &
+                    "<div style='min-width:0'><div style='" & _sTitH & "'>CARV&#195;O</div>" &
+                    "<div style='" & _sSubH & "'>Carregamento &#183; m&#179;</div></div>" &
+                "</div>" &
+            "<div style='" & _sBody & "'>" &
+            "<div style='flex:1;min-width:0'>" &
+                "<div style='" & _sKpiLbH & "'>CARREGADO NO M&#202;S (m&#179;)</div>" &
+                "<div style='" & _sKpiVlH & "'>" & FORMAT ( _vExp, "#,##0" ) & "</div>" &
+                "<div style='" & _sHintH & "'>Realizado x meta da parti&#231;&#227;o</div>" &
+            "</div>" &
+            "<div style='" & _sSide & "'>" &
+                "<div style='" & _sPill & "'><div style='" & _sPillL & "'>% ALCANCE</div><div style='" & _sPillV & "'>" & FORMAT ( _vAtin, "0.00%" ) & "</div></div>" &
+                "<div class='" & _clsRV & "' style='" & _sPill & "'><div style='" & _sPillL & "'>% RITMO</div><div style='" & _sPillV & ";color:" & _corRV & "'>" & FORMAT ( _vRit, "0.00%" ) & "</div></div>" &
+            "</div>" &
+            "</div>" &
         "</div>" &
-        "<div style='" & _sKpiLb & "'>CARREGADO NO M&#202;S (m&#179;)</div>" &
-        "<div style='" & _sKpiVl & "'>" & FORMAT ( _vExp, "#,##0" ) & "</div>" &
-        "<div style='" & _sHint & "'>Realizado x meta da parti&#231;&#227;o</div>" &
         "<div style='" & _sGrid & "'>" &
             "<div style='" & _sCell & "'><div style='" & _sCellL & "'>META (m&#179;)</div><div style='" & _sCellV & "'>" & FORMAT ( _vMeta, "#,##0" ) & "</div></div>" &
-            "<div style='" & _sCell & "'><div style='" & _sCellL & "'>% ALCANCE</div><div style='" & _sCellV & "'>" & FORMAT ( _vAtin, "0.00%" ) & "</div></div>" &
             "<div style='" & _sCell & "'><div style='" & _sCellL & "'>RITMO (TEND&#202;NCIA)</div><div style='" & _sCellV & "'>" & FORMAT ( _vTend, "#,##0" ) & "</div></div>" &
-            "<div class='" & _clsRV & "' style='" & _sCell & "'><div style='" & _sCellL & "'>% RITMO</div><div style='" & _sCellV & ";color:" & _corRV & "'>" & FORMAT ( _vRit, "0.00%" ) & "</div></div>" &
             "<div style='" & _sCell & "'><div style='" & _sCellL & "'>PREVIS&#195;O CONCLUS&#195;O</div><div style='" & _sCellV & "'>" & FORMAT ( _vPrev, "dd/mm/yyyy" ) & "</div></div>" &
             "<div style='" & _sCell & "'><div style='" & _sCellL & "'>M&#201;DIA DI&#193;RIA (m&#179;)</div><div style='" & _sCellV & "'>" & FORMAT ( _vMed, "#,##0" ) & "</div></div>" &
             "<div style='" & _sCell & "'><div style='" & _sCellL & "'>M&#201;DIA NECESS&#193;RIA (m&#179;)</div><div style='" & _sCellV & "'>" & FORMAT ( _vNec, "#,##0" ) & "</div></div>" &
@@ -285,19 +323,27 @@ VAR _cardCarv =
 
 VAR _cardMP =
     "<div style='" & _sCard & "'>" &
-        "<div style='display:flex;align-items:center;gap:10px'>" &
-            "<div style='" & _sIcon & "'>" & _icMP & "</div>" &
-            "<div style='min-width:0'><div style='" & _sTit & "'>MAT&#201;RIA PRIMA</div>" &
-            "<div style='" & _sSub & "'>Recebimento &#183; toneladas</div></div>" &
+        "<div style='" & _sHead & "'>" &
+                "<div style='display:flex;align-items:center;gap:10px'>" &
+                    "<div style='" & _sIcon & "'>" & _icMP & "</div>" &
+                    "<div style='min-width:0'><div style='" & _sTitH & "'>MAT&#201;RIA PRIMA</div>" &
+                    "<div style='" & _sSubH & "'>Recebimento &#183; toneladas</div></div>" &
+                "</div>" &
+            "<div style='" & _sBody & "'>" &
+            "<div style='flex:1;min-width:0'>" &
+                "<div style='" & _sKpiLbH & "'>RECEBIDO NO M&#202;S (t)</div>" &
+                "<div style='" & _sKpiVlH & "'>" & FORMAT ( _pRec, "#,##0" ) & "</div>" &
+                "<div style='" & _sHintH & "'>Realizado x meta do m&#234;s</div>" &
+            "</div>" &
+            "<div style='" & _sSide & "'>" &
+                "<div style='" & _sPill & "'><div style='" & _sPillL & "'>% ALCANCE</div><div style='" & _sPillV & "'>" & FORMAT ( _pAlc, "0.00%" ) & "</div></div>" &
+                "<div class='" & _clsRP & "' style='" & _sPill & "'><div style='" & _sPillL & "'>% RITMO</div><div style='" & _sPillV & ";color:" & _corRP & "'>" & FORMAT ( _pRit, "0.00%" ) & "</div></div>" &
+            "</div>" &
+            "</div>" &
         "</div>" &
-        "<div style='" & _sKpiLb & "'>RECEBIDO NO M&#202;S (t)</div>" &
-        "<div style='" & _sKpiVl & "'>" & FORMAT ( _pRec, "#,##0" ) & "</div>" &
-        "<div style='" & _sHint & "'>Realizado x meta do m&#234;s</div>" &
         "<div style='" & _sGrid & "'>" &
             "<div style='" & _sCell & "'><div style='" & _sCellL & "'>META (t)</div><div style='" & _sCellV & "'>" & FORMAT ( _pMeta, "#,##0" ) & "</div></div>" &
-            "<div style='" & _sCell & "'><div style='" & _sCellL & "'>% ALCANCE</div><div style='" & _sCellV & "'>" & FORMAT ( _pAlc, "0.00%" ) & "</div></div>" &
             "<div style='" & _sCell & "'><div style='" & _sCellL & "'>RITMO (TEND&#202;NCIA)</div><div style='" & _sCellV & "'>" & FORMAT ( _pTend, "#,##0" ) & "</div></div>" &
-            "<div class='" & _clsRP & "' style='" & _sCell & "'><div style='" & _sCellL & "'>% RITMO</div><div style='" & _sCellV & ";color:" & _corRP & "'>" & FORMAT ( _pRit, "0.00%" ) & "</div></div>" &
             "<div style='" & _sCell & "'><div style='" & _sCellL & "'>PREVIS&#195;O CONCLUS&#195;O</div><div style='" & _sCellV & "'>" & FORMAT ( _pPrev, "dd/mm/yyyy" ) & "</div></div>" &
             "<div style='" & _sCell & "'><div style='" & _sCellL & "'>M&#201;DIA DI&#193;RIA (t)</div><div style='" & _sCellV & "'>" & FORMAT ( _pMed, "#,##0" ) & "</div></div>" &
             "<div style='" & _sCell & "'><div style='" & _sCellL & "'>M&#201;DIA NECESS&#193;RIA (t)</div><div style='" & _sCellV & "'>" & FORMAT ( _pNec, "#,##0" ) & "</div></div>" &
