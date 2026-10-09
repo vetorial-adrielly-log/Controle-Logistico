@@ -1,0 +1,116 @@
+// PCP x Realizado (HTML) — tabela 'Medidas Carvão', visual HTML Content
+// Colunas por dia (do dia 1 do mês até hoje): azul = realizado, azul-escuro = planejado PCP,
+// laranja = diferença entre os dois (empilhada sobre a coluna menor) com o valor (real - PCP) acima.
+// O SVG usa viewBox fixo de 1400 x 190 e se ajusta à largura do visual (proporção ~ 8:1).
+PCP x Realizado HTML =
+VAR _fim = MIN ( MAX ( d_Calendario[Date] ), TODAY () )
+VAR _ini = DATE ( YEAR ( _fim ), MONTH ( _fim ), 1 )
+VAR _dias =
+    CALCULATETABLE (
+        VALUES ( d_Calendario[Date] ),
+        REMOVEFILTERS ( d_Calendario ),
+        DATESBETWEEN ( d_Calendario[Date], _ini, _fim )
+    )
+VAR _base =
+    ADDCOLUMNS (
+        _dias,
+        "@R",
+            VAR _d = d_Calendario[Date]
+            RETURN COALESCE ( CALCULATE ( [Carregado Carvão (m³)], REMOVEFILTERS ( d_Calendario ), d_Calendario[Date] = _d ), 0 ),
+        "@P",
+            VAR _d = d_Calendario[Date]
+            RETURN COALESCE ( CALCULATE ( [Planejado PCP (m³)], REMOVEFILTERS ( d_Calendario ), d_Calendario[Date] = _d ), 0 )
+    )
+VAR _t = FILTER ( _base, [@R] > 0 || [@P] > 0 )
+VAR _n = COUNTROWS ( _t )
+VAR _max = MAXX ( _t, MAX ( [@R], [@P] ) )
+VAR _totR = SUMX ( _t, [@R] )
+VAR _totP = SUMX ( _t, [@P] )
+VAR _totD = _totR - _totP
+-- cores
+VAR _cR = "#3B8EEA"
+VAR _cP = "#1F2A8A"
+VAR _cD = "#F28C28"
+VAR _cTit = "#284D38"
+-- geometria (unidades do viewBox)
+VAR _W = 1400
+VAR _H = 190
+VAR _top = 48
+VAR _bot = 30
+VAR _ch = _H - _top - _bot
+VAR _gw = DIVIDE ( _W, _n )
+VAR _bw = ROUND ( MIN ( _gw * 0.3, 56 ), 0 )
+VAR _mostraValores = _gw >= 95
+VAR _fsV = 15
+VAR _fsD = IF ( _gw >= 60, 15, 12 )
+VAR _fsX = IF ( _gw >= 75, 14, 12 )
+VAR _barras =
+    CONCATENATEX (
+        _t,
+        VAR _i = RANKX ( _t, d_Calendario[Date], , ASC, DENSE )
+        VAR _d = d_Calendario[Date]
+        VAR _r = [@R]
+        VAR _p = [@P]
+        VAR _dif = _r - _p
+        VAR _lo = MIN ( _r, _p )
+        VAR _hi = MAX ( _r, _p )
+        VAR _cx = ROUND ( ( _i - 0.5 ) * _gw, 0 )
+        VAR _xR = _cx - _bw - 2
+        VAR _xP = _cx + 2
+        -- y(v) = _top + _ch - v / _max * _ch
+        VAR _yR = ROUND ( _top + _ch - DIVIDE ( _r, _max ) * _ch, 0 )
+        VAR _yP = ROUND ( _top + _ch - DIVIDE ( _p, _max ) * _ch, 0 )
+        VAR _yHi = MIN ( _yR, _yP )
+        VAR _yLo = MAX ( _yR, _yP )
+        VAR _base0 = _top + _ch
+        -- a diferença fica sobre a coluna menor (realizado abaixo do PCP: falta; acima: excedente)
+        VAR _xDif = IF ( _r < _p, _xR, _xP )
+        VAR _rotDia =
+            IF ( _gw >= 75, FORMAT ( _d, "dd" ) & " - " & FORMAT ( _d, "ddd" ), FORMAT ( _d, "dd" ) )
+        VAR _tip =
+            FORMAT ( _d, "dd/mm" ) & " · Realizado " & FORMAT ( _r, "#,##0" ) & " · PCP " & FORMAT ( _p, "#,##0" )
+                & " · Diferença " & FORMAT ( _dif, "+#,##0;-#,##0;0" )
+        RETURN
+            "<g><title>" & _tip & "</title>"
+                & "<rect x='" & _xR & "' y='" & _yR & "' width='" & _bw & "' height='" & _base0 - _yR & "' rx='2' fill='" & _cR & "'/>"
+                & "<rect x='" & _xP & "' y='" & _yP & "' width='" & _bw & "' height='" & _base0 - _yP & "' rx='2' fill='" & _cP & "'/>"
+                & IF (
+                    _yLo - _yHi >= 1,
+                    "<rect x='" & _xDif & "' y='" & _yHi & "' width='" & _bw & "' height='" & _yLo - _yHi & "' rx='2' fill='" & _cD & "'/>"
+                )
+                & IF (
+                    _mostraValores,
+                    "<text x='" & _xR + ROUND ( _bw / 2, 0 ) & "' y='" & _yHi - 5 & "' font-size='" & _fsV & "' fill='#333' text-anchor='middle'>" & FORMAT ( _r, "#,##0" ) & "</text>"
+                        & "<text x='" & _xP + ROUND ( _bw / 2, 0 ) & "' y='" & _yHi - 5 & "' font-size='" & _fsV & "' fill='#333' text-anchor='middle'>" & FORMAT ( _p, "#,##0" ) & "</text>"
+                )
+                & "<text x='" & _cx & "' y='" & _yHi - IF ( _mostraValores, 24, 6 ) & "' font-size='" & _fsD & "' font-weight='700' fill='" & _cD & "' text-anchor='middle'>"
+                & FORMAT ( _dif, "+#,##0;-#,##0;0" ) & "</text>"
+                & "<text x='" & _cx & "' y='" & _H - 9 & "' font-size='" & _fsX & "' fill='#555' text-anchor='middle'>" & _rotDia & "</text>"
+                & "</g>",
+        "",
+        d_Calendario[Date], ASC
+    )
+VAR _leg = "display:inline-flex;align-items:center;gap:4px;margin-left:12px"
+VAR _sq = "display:inline-block;width:10px;height:10px;border-radius:2px;background:"
+VAR _cab =
+    "<div style='display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:4px;margin:0 0 2px'>"
+        & "<div style='font-size:12px;font-weight:700;color:" & _cTit & "'>PLANEJADO PCP X REALIZADO (m&#179;)</div>"
+        & "<div style='font-size:11px;color:#444'>"
+        & "<span style='" & _leg & "'><span style='" & _sq & _cR & "'></span>Realizado</span>"
+        & "<span style='" & _leg & "'><span style='" & _sq & _cP & "'></span>Planejado PCP</span>"
+        & "<span style='" & _leg & "'><span style='" & _sq & _cD & "'></span>Diferen&#231;a (real &#8722; PCP)</span>"
+        & "<span style='" & _leg & ";margin-left:16px'>Acum.: <b>&nbsp;" & FORMAT ( _totR, "#,##0" ) & "</b>&nbsp;x&nbsp;<b>" & FORMAT ( _totP, "#,##0" )
+        & "</b>&nbsp;=&nbsp;<b style='color:" & _cD & "'>" & FORMAT ( _totD, "+#,##0;-#,##0;0" ) & "</b></span>"
+        & "</div></div>"
+RETURN
+    IF (
+        NOT [_Sem Recorte UPC] || _n = 0 || ISBLANK ( _max ) || _max = 0,
+        "<div style='font-family:Segoe UI,Arial,sans-serif;font-size:12px;color:#777'>Sem planejado PCP no per&#237;odo"
+            & IF ( NOT [_Sem Recorte UPC], " (o PCP n&#227;o abre por UPC, destino ou transportador: limpe esses filtros)" )
+            & ".</div>",
+        "<div style='font-family:Segoe UI,Arial,sans-serif;margin:0;padding:0'>" & _cab
+            & "<svg viewBox='0 0 " & _W & " " & _H & "' width='100%' style='display:block' font-family='Segoe UI,Arial,sans-serif'>"
+            & "<line x1='0' y1='" & _top + _ch & "' x2='" & _W & "' y2='" & _top + _ch & "' stroke='#D9D9D9'/>"
+            & _barras
+            & "</svg></div>"
+    )
