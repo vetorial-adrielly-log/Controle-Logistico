@@ -27,10 +27,10 @@ VAR _max = MAXX ( _t, MAX ( [@R], [@P] ) )
 VAR _totR = SUMX ( _t, [@R] )
 VAR _totP = SUMX ( _t, [@P] )
 VAR _totD = _totR - _totP
--- cores
-VAR _cR = "#3B8EEA"
-VAR _cP = "#1F2A8A"
-VAR _cD = "#F28C28"
+-- cores da identidade visual: verde (realizado), cinza (PCP), laranja (diferença)
+VAR _cR = "#4D8264"
+VAR _cP = "#5F5E5A"
+VAR _cD = "#D9822B"
 VAR _cTit = "#284D38"
 -- geometria (unidades do viewBox)
 VAR _W = 1400
@@ -80,12 +80,12 @@ VAR _barras =
                 )
                 & IF (
                     _mostraValores,
-                    "<text x='" & _xR + ROUND ( _bw / 2, 0 ) & "' y='" & _yHi - 5 & "' font-size='" & _fsV & "' fill='#333' text-anchor='middle'>" & FORMAT ( _r, "#,##0" ) & "</text>"
-                        & "<text x='" & _xP + ROUND ( _bw / 2, 0 ) & "' y='" & _yHi - 5 & "' font-size='" & _fsV & "' fill='#333' text-anchor='middle'>" & FORMAT ( _p, "#,##0" ) & "</text>"
+                    "<text x='" & _xR + ROUND ( _bw / 2, 0 ) & "' y='" & _yHi - 5 & "' font-size='" & _fsV & "' fill='#3D3D3A' text-anchor='middle'>" & FORMAT ( _r, "#,##0" ) & "</text>"
+                        & "<text x='" & _xP + ROUND ( _bw / 2, 0 ) & "' y='" & _yHi - 5 & "' font-size='" & _fsV & "' fill='#3D3D3A' text-anchor='middle'>" & FORMAT ( _p, "#,##0" ) & "</text>"
                 )
                 & "<text x='" & _cx & "' y='" & _yHi - IF ( _mostraValores, 24, 6 ) & "' font-size='" & _fsD & "' font-weight='700' fill='" & _cD & "' text-anchor='middle'>"
                 & FORMAT ( _dif, "+#,##0;-#,##0;0" ) & "</text>"
-                & "<text x='" & _cx & "' y='" & _H - 9 & "' font-size='" & _fsX & "' fill='#555' text-anchor='middle'>" & _rotDia & "</text>"
+                & "<text x='" & _cx & "' y='" & _H - 9 & "' font-size='" & _fsX & "' fill='#5F5E5A' text-anchor='middle'>" & _rotDia & "</text>"
                 & "</g>",
         "",
         d_Calendario[Date], ASC
@@ -95,7 +95,7 @@ VAR _sq = "display:inline-block;width:10px;height:10px;border-radius:2px;backgro
 VAR _cab =
     "<div style='display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:4px;margin:0 0 2px'>"
         & "<div style='font-size:12px;font-weight:700;color:" & _cTit & "'>PLANEJADO PCP X REALIZADO (m&#179;)</div>"
-        & "<div style='font-size:11px;color:#444'>"
+        & "<div style='font-size:11px;color:#3D3D3A'>"
         & "<span style='" & _leg & "'><span style='" & _sq & _cR & "'></span>Realizado</span>"
         & "<span style='" & _leg & "'><span style='" & _sq & _cP & "'></span>Planejado PCP</span>"
         & "<span style='" & _leg & "'><span style='" & _sq & _cD & "'></span>Diferen&#231;a (real &#8722; PCP)</span>"
@@ -110,7 +110,7 @@ RETURN
             & ".</div>",
         "<div style='font-family:Segoe UI,Arial,sans-serif;margin:0;padding:0'>" & _cab
             & "<svg viewBox='0 0 " & _W & " " & _H & "' width='100%' style='display:block' font-family='Segoe UI,Arial,sans-serif'>"
-            & "<line x1='0' y1='" & _top + _ch & "' x2='" & _W & "' y2='" & _top + _ch & "' stroke='#D9D9D9'/>"
+            & "<line x1='0' y1='" & _top + _ch & "' x2='" & _W & "' y2='" & _top + _ch & "' stroke='#E5E3DC'/>"
             & _barras
             & "</svg></div>"
     )
